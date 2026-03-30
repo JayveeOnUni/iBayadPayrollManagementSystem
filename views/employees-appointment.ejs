@@ -1,0 +1,66 @@
+<%- include('partials/header', { title: 'Appointment', activeMenu: 'employees', activePage: 'employees-appointment' }) %>
+
+<div class="page-header">
+  <h1 class="page-title">Employee</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="openModal('modal-add')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Appointment
+    </button>
+  </div>
+</div>
+
+<div class="content-section">
+  <div class="tabs">
+    <a href="/employees"             class="tab-btn">All Employee</a>
+    <a href="/employees/appointment" class="tab-btn active">Appointment</a>
+  </div>
+
+  <div class="card" style="padding:20px 24px;">
+    <div class="filters-row">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search…" oninput="filterTable('search-apt', 'apt-table')" id="search-apt">
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table-lg" id="apt-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Position</th>
+            <th>Start Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% employees.forEach((e, i) => { %>
+          <tr>
+            <td style="color:var(--n80);"><%= i + 1 %></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">
+                  <%= e.name.split(' ').map(n=>n[0]).join('').substring(0,2) %>
+                </div>
+                <span style="font-weight:500;"><%= e.name %></span>
+              </div>
+            </td>
+            <td><%= e.department %></td>
+            <td><%= e.position %></td>
+            <td class="text-muted"><%= e.start_date %></td>
+            <td>
+              <span class="badge <%= e.status === 'Active' ? 'badge-success' : 'badge-neutral' %>">
+                <%= e.status %>
+              </span>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

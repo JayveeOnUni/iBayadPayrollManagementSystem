@@ -1,0 +1,53 @@
+<%- include('partials/header', { title: 'Leave Summary', activeMenu: 'leave', activePage: 'leave-summary' }) %>
+
+<div class="page-header">
+  <h1 class="page-title">Leave</h1>
+</div>
+
+<div class="content-section">
+  <div class="tabs">
+    <a href="/leave/status"   class="tab-btn">Status</a>
+    <a href="/leave/request"  class="tab-btn">Request</a>
+    <a href="/leave/calendar" class="tab-btn">Calendar</a>
+    <a href="/leave/summary"  class="tab-btn active">Summary</a>
+  </div>
+
+  <div class="card" style="padding:20px 24px;">
+    <div class="section-bar">
+      <div class="section-title">Leave Summary per Employee</div>
+    </div>
+    <div class="table-wrap">
+      <table class="table-lg">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Department</th>
+            <th>Allowance</th>
+            <th>Approved</th>
+            <th>Pending</th>
+            <th>Rejected</th>
+            <th>Available</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% summary.forEach(s => { %>
+          <tr>
+            <td style="font-weight:500;"><%= s.employee_name %></td>
+            <td><%= s.department || '—' %></td>
+            <td style="text-align:center;">15</td>
+            <td style="text-align:center;color:var(--success-main);font-weight:600;"><%= s.approved %></td>
+            <td style="text-align:center;color:var(--warning-main);font-weight:600;"><%= s.pending %></td>
+            <td style="text-align:center;color:var(--danger-main);font-weight:600;"><%= s.rejected %></td>
+            <td style="text-align:center;color:var(--info);font-weight:600;"><%= 15 - s.approved %></td>
+          </tr>
+          <% }) %>
+          <% if (summary.length === 0) { %>
+          <tr><td colspan="7" style="text-align:center;color:var(--n80);padding:32px;">No data available.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

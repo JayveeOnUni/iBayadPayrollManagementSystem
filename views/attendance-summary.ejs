@@ -1,0 +1,61 @@
+<%- include('partials/header', { title: 'Attendance Summary', activeMenu: 'attendance', activePage: 'attendance-summary' }) %>
+
+<div class="page-header">
+  <h1 class="page-title">Attendance</h1>
+</div>
+
+<div class="content-section">
+  <div class="tabs">
+    <a href="/attendance/daily-log" class="tab-btn">Daily Log</a>
+    <a href="/attendance/request"   class="tab-btn">Request</a>
+    <a href="/attendance/details"   class="tab-btn">Details</a>
+    <a href="/attendance/summary"   class="tab-btn active">Summary</a>
+  </div>
+
+  <div class="card" style="padding:20px 24px;">
+    <div class="section-bar">
+      <div class="section-title">Attendance Summary per Employee</div>
+    </div>
+    <div class="table-wrap">
+      <table class="table-lg">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Department</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Late</th>
+            <th>Total Days</th>
+            <th>Attendance %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% summary.forEach(s => { %>
+          <% const pct = s.total > 0 ? Math.round((s.present / s.total) * 100) : 0; %>
+          <tr>
+            <td style="font-weight:500;"><%= s.employee_name %></td>
+            <td><%= s.department || '—' %></td>
+            <td style="text-align:center;color:var(--success-main);font-weight:600;"><%= s.present %></td>
+            <td style="text-align:center;color:var(--danger-main);font-weight:600;"><%= s.absent %></td>
+            <td style="text-align:center;color:var(--warning-main);font-weight:600;"><%= s.late %></td>
+            <td style="text-align:center;"><%= s.total %></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="time-log-bar" style="min-width:80px;">
+                  <div class="time-log-fill" style="width:<%= pct %>%;background:<%= pct >= 80 ? 'var(--success-main)' : pct >= 60 ? 'var(--warning-main)' : 'var(--danger-main)' %>;"></div>
+                </div>
+                <span style="font-size:12px;font-weight:600;color:<%= pct >= 80 ? 'var(--success-main)' : pct >= 60 ? 'var(--warning-main)' : 'var(--danger-main)' %>;"><%= pct %>%</span>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+          <% if (summary.length === 0) { %>
+          <tr><td colspan="7" style="text-align:center;color:var(--n80);padding:32px;">No data.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

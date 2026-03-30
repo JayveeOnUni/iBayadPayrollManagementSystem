@@ -1,0 +1,447 @@
+{
+  "employees": [
+    {
+      "id": 1,
+      "name": "Jayvee Santos",
+      "email": "jayvee@ibayad.com",
+      "department": "Engineering",
+      "position": "Software Developer",
+      "status": "Active",
+      "start_date": "2022-01-15",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 2,
+      "name": "Maria Cruz",
+      "email": "maria@ibayad.com",
+      "department": "Design",
+      "position": "UI/UX Designer",
+      "status": "Active",
+      "start_date": "2021-06-01",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 3,
+      "name": "Jose Reyes",
+      "email": "jose@ibayad.com",
+      "department": "QA",
+      "position": "Software Tester",
+      "status": "Active",
+      "start_date": "2022-03-10",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 4,
+      "name": "Ana Dela Cruz",
+      "email": "ana@ibayad.com",
+      "department": "Security",
+      "position": "Ethical Hacker",
+      "status": "Active",
+      "start_date": "2021-09-15",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 5,
+      "name": "Pedro Lim",
+      "email": "pedro@ibayad.com",
+      "department": "Engineering",
+      "position": "Scrum Master",
+      "status": "Active",
+      "start_date": "2020-11-01",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 6,
+      "name": "Rosa Garcia",
+      "email": "rosa@ibayad.com",
+      "department": "HR",
+      "position": "HR Manager",
+      "status": "Active",
+      "start_date": "2019-05-20",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 7,
+      "name": "Miguel Torres",
+      "email": "miguel@ibayad.com",
+      "department": "Engineering",
+      "position": "Backend Developer",
+      "status": "Inactive",
+      "start_date": "2021-02-14",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 8,
+      "name": "Lucia Fernandez",
+      "email": "lucia@ibayad.com",
+      "department": "Finance",
+      "position": "Accountant",
+      "status": "Active",
+      "start_date": "2022-07-01",
+      "created_at": "2026-03-30 18:13:46"
+    }
+  ],
+  "announcements": [
+    {
+      "id": 1,
+      "title": "Scrum Master",
+      "description": "Corrected item alignment",
+      "start_date": "Dec 4, 2024 21:42",
+      "end_date": "Dec 7, 2024 23:26",
+      "created_by": "Admin",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 2,
+      "title": "Software Tester",
+      "description": "Embedded analytic scripts",
+      "start_date": "Dec 30, 2024 05:18",
+      "end_date": "Feb 2, 2025 19:28",
+      "created_by": "Admin",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 3,
+      "title": "Software Developer",
+      "description": "High resolution imagery option",
+      "start_date": "Dec 30, 2024 07:52",
+      "end_date": "Dec 4, 2024 21:42",
+      "created_by": "Admin",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 4,
+      "title": "UI/UX Designer",
+      "description": "Enhanced UX for cart quantity updates",
+      "start_date": "Dec 7, 2024 23:26",
+      "end_date": "Feb 2, 2025 19:28",
+      "created_by": "Admin",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 5,
+      "title": "Ethical Hacker",
+      "description": "Cart history fixes",
+      "start_date": "Mar 20, 2024 23:14",
+      "end_date": "Dec 4, 2024 21:42",
+      "created_by": "Admin",
+      "created_at": "2026-03-30 18:13:46"
+    }
+  ],
+  "leave_requests": [
+    {
+      "id": 1,
+      "employee_id": 1,
+      "employee_name": "Jayvee Santos",
+      "leave_type": "Sick Leave",
+      "start_date": "2025-01-10",
+      "end_date": "2025-01-12",
+      "days": 3,
+      "reason": "Fever and flu",
+      "status": "Approved",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 2,
+      "employee_id": 2,
+      "employee_name": "Maria Cruz",
+      "leave_type": "Vacation Leave",
+      "start_date": "2025-02-14",
+      "end_date": "2025-02-16",
+      "days": 3,
+      "reason": "Personal vacation",
+      "status": "Pending",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 3,
+      "employee_id": 3,
+      "employee_name": "Jose Reyes",
+      "leave_type": "Emergency Leave",
+      "start_date": "2025-01-20",
+      "end_date": "2025-01-20",
+      "days": 1,
+      "reason": "Family emergency",
+      "status": "Approved",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 4,
+      "employee_id": 4,
+      "employee_name": "Ana Dela Cruz",
+      "leave_type": "Sick Leave",
+      "start_date": "2025-03-05",
+      "end_date": "2025-03-06",
+      "days": 2,
+      "reason": "Medical appointment",
+      "status": "Rejected",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 5,
+      "employee_id": 5,
+      "employee_name": "Pedro Lim",
+      "leave_type": "Vacation Leave",
+      "start_date": "2025-04-01",
+      "end_date": "2025-04-05",
+      "days": 5,
+      "reason": "Anniversary trip",
+      "status": "Pending",
+      "created_at": "2026-03-30 18:13:46"
+    },
+    {
+      "id": 6,
+      "employee_id": 6,
+      "employee_name": "Rosa Garcia",
+      "leave_type": "Sick Leave",
+      "start_date": "2025-03-15",
+      "end_date": "2025-03-15",
+      "days": 1,
+      "reason": "Doctor visit",
+      "status": "Approved",
+      "created_at": "2026-03-30 18:13:46"
+    }
+  ],
+  "attendance": [
+    {
+      "id": 1,
+      "employee_id": 1,
+      "employee_name": "Jayvee Santos",
+      "date": "2025-03-25",
+      "time_in": "08:45",
+      "time_out": "17:30",
+      "status": "Present"
+    },
+    {
+      "id": 2,
+      "employee_id": 2,
+      "employee_name": "Maria Cruz",
+      "date": "2025-03-25",
+      "time_in": "09:00",
+      "time_out": "18:00",
+      "status": "Present"
+    },
+    {
+      "id": 3,
+      "employee_id": 3,
+      "employee_name": "Jose Reyes",
+      "date": "2025-03-25",
+      "time_in": "08:30",
+      "time_out": "17:00",
+      "status": "Present"
+    },
+    {
+      "id": 4,
+      "employee_id": 4,
+      "employee_name": "Ana Dela Cruz",
+      "date": "2025-03-25",
+      "time_in": null,
+      "time_out": null,
+      "status": "Absent"
+    },
+    {
+      "id": 5,
+      "employee_id": 5,
+      "employee_name": "Pedro Lim",
+      "date": "2025-03-25",
+      "time_in": "09:15",
+      "time_out": "18:15",
+      "status": "Late"
+    },
+    {
+      "id": 6,
+      "employee_id": 6,
+      "employee_name": "Rosa Garcia",
+      "date": "2025-03-25",
+      "time_in": "08:00",
+      "time_out": "17:00",
+      "status": "Present"
+    },
+    {
+      "id": 7,
+      "employee_id": 1,
+      "employee_name": "Jayvee Santos",
+      "date": "2025-03-26",
+      "time_in": "08:45",
+      "time_out": "17:30",
+      "status": "Present"
+    },
+    {
+      "id": 8,
+      "employee_id": 2,
+      "employee_name": "Maria Cruz",
+      "date": "2025-03-26",
+      "time_in": "08:55",
+      "time_out": "18:00",
+      "status": "Present"
+    },
+    {
+      "id": 9,
+      "employee_id": 3,
+      "employee_name": "Jose Reyes",
+      "date": "2025-03-26",
+      "time_in": "09:30",
+      "time_out": "17:00",
+      "status": "Late"
+    },
+    {
+      "id": 10,
+      "employee_id": 5,
+      "employee_name": "Pedro Lim",
+      "date": "2025-03-26",
+      "time_in": "08:50",
+      "time_out": "18:00",
+      "status": "Present"
+    }
+  ],
+  "departments": [
+    {
+      "id": 1,
+      "name": "Engineering",
+      "head": "Jayvee Santos",
+      "employee_count": 3
+    },
+    {
+      "id": 2,
+      "name": "Design",
+      "head": "Maria Cruz",
+      "employee_count": 2
+    },
+    {
+      "id": 3,
+      "name": "QA",
+      "head": "Jose Reyes",
+      "employee_count": 1
+    },
+    {
+      "id": 4,
+      "name": "Security",
+      "head": "Ana Dela Cruz",
+      "employee_count": 1
+    },
+    {
+      "id": 5,
+      "name": "HR",
+      "head": "Rosa Garcia",
+      "employee_count": 2
+    },
+    {
+      "id": 6,
+      "name": "Finance",
+      "head": "Lucia Fernandez",
+      "employee_count": 1
+    }
+  ],
+  "roles": [
+    {
+      "id": 1,
+      "name": "Admin",
+      "permissions": "Full Access",
+      "user_count": 2
+    },
+    {
+      "id": 2,
+      "name": "HR Manager",
+      "permissions": "Employees, Leave, Attendance",
+      "user_count": 1
+    },
+    {
+      "id": 3,
+      "name": "Manager",
+      "permissions": "Team management, Reports",
+      "user_count": 3
+    },
+    {
+      "id": 4,
+      "name": "Employee",
+      "permissions": "Self-service only",
+      "user_count": 10
+    }
+  ],
+  "shifts": [
+    {
+      "id": 1,
+      "name": "Morning Shift",
+      "time_in": "08:00",
+      "time_out": "17:00",
+      "break_duration": 60
+    },
+    {
+      "id": 2,
+      "name": "Mid Shift",
+      "time_in": "12:00",
+      "time_out": "21:00",
+      "break_duration": 60
+    },
+    {
+      "id": 3,
+      "name": "Night Shift",
+      "time_in": "21:00",
+      "time_out": "06:00",
+      "break_duration": 60
+    },
+    {
+      "id": 4,
+      "name": "Flexible",
+      "time_in": "07:00",
+      "time_out": "16:00",
+      "break_duration": 60
+    }
+  ],
+  "holidays": [
+    {
+      "id": 1,
+      "name": "New Year's Day",
+      "date": "2025-01-01",
+      "type": "Regular"
+    },
+    {
+      "id": 2,
+      "name": "EDSA Revolution Day",
+      "date": "2025-02-25",
+      "type": "Special"
+    },
+    {
+      "id": 3,
+      "name": "Araw ng Kagitingan",
+      "date": "2025-04-09",
+      "type": "Regular"
+    },
+    {
+      "id": 4,
+      "name": "Labor Day",
+      "date": "2025-05-01",
+      "type": "Regular"
+    },
+    {
+      "id": 5,
+      "name": "Independence Day",
+      "date": "2025-06-12",
+      "type": "Regular"
+    },
+    {
+      "id": 6,
+      "name": "National Heroes Day",
+      "date": "2025-08-25",
+      "type": "Regular"
+    },
+    {
+      "id": 7,
+      "name": "Bonifacio Day",
+      "date": "2025-11-30",
+      "type": "Regular"
+    },
+    {
+      "id": 8,
+      "name": "Christmas Day",
+      "date": "2025-12-25",
+      "type": "Regular"
+    },
+    {
+      "id": 9,
+      "name": "Rizal Day",
+      "date": "2025-12-30",
+      "type": "Regular"
+    }
+  ]
+}

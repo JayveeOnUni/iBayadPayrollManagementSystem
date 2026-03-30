@@ -1,0 +1,119 @@
+<%- include('partials/header', { title: 'Department', activeMenu: 'administration', activePage: 'admin-department' }) %>
+
+<div class="page-header">
+  <h1 class="page-title">Administration</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="openModal('modal-add')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Department
+    </button>
+  </div>
+</div>
+
+<div class="content-section">
+  <div class="tabs">
+    <a href="/administration/roles"        class="tab-btn">Roles</a>
+    <a href="/administration/shift"        class="tab-btn">Shift</a>
+    <a href="/administration/department"   class="tab-btn active">Department</a>
+    <a href="/administration/holiday"      class="tab-btn">Holiday</a>
+    <a href="/administration/announcement" class="tab-btn">Announcement</a>
+  </div>
+
+  <div class="card" style="padding:20px 24px;">
+    <div class="table-wrap">
+      <table class="table-lg">
+        <thead>
+          <tr><th>#</th><th>Department</th><th>Head</th><th>Employees</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <% departments.forEach((d, i) => { %>
+          <tr>
+            <td style="color:var(--n80);"><%= i+1 %></td>
+            <td style="font-weight:500;"><%= d.name %></td>
+            <td><%= d.head || '—' %></td>
+            <td style="text-align:center;"><span class="badge badge-info"><%= d.employee_count %></span></td>
+            <td>
+              <div class="actions-col">
+                <button class="btn btn-outline btn-sm" onclick='editDept(<%= JSON.stringify(d) %>)'>Edit</button>
+                <form id="del-dept-<%= d.id %>" action="/administration/department/<%= d.id %>?_method=DELETE" method="POST" style="display:inline;">
+                  <button type="button" class="btn btn-sm" style="background:var(--danger-surface);color:var(--danger-main);" onclick="confirmDelete('del-dept-<%= d.id %>')">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Department</div>
+      <button class="modal-close" onclick="closeModal('modal-add')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form action="/administration/department" method="POST">
+      <div class="modal-body">
+        <div class="form-grid full">
+          <div class="form-group">
+            <label class="form-label">Department Name *</label>
+            <input class="form-input" name="name" required placeholder="e.g. Engineering">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department Head</label>
+            <input class="form-input" name="head" placeholder="e.g. Juan Dela Cruz">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-add')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Department</div>
+      <button class="modal-close" onclick="closeModal('modal-edit')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="edit-form" action="" method="POST">
+      <input type="hidden" name="_method" value="PUT">
+      <div class="modal-body">
+        <div class="form-grid full">
+          <div class="form-group">
+            <label class="form-label">Department Name *</label>
+            <input class="form-input" name="name" id="edit-name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department Head</label>
+            <input class="form-input" name="head" id="edit-head">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-edit')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function editDept(d) {
+  document.getElementById('edit-form').action = '/administration/department/' + d.id;
+  document.getElementById('edit-name').value = d.name;
+  document.getElementById('edit-head').value = d.head || '';
+  openModal('modal-edit');
+}
+</script>
+
+<%- include('partials/footer') %>

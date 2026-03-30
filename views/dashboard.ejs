@@ -1,0 +1,174 @@
+<%- include('partials/header', { title: 'Dashboard', activeMenu: 'dashboard', activePage: 'dashboard' }) %>
+
+<!-- Page Header -->
+<div class="page-header">
+  <h1 class="page-title">Dashboard</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary btn-icon" title="Add">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <button class="btn btn-outline">Manager POV</button>
+  </div>
+</div>
+
+<div class="content-section">
+
+  <!-- Greeting -->
+  <div style="margin-bottom:16px;">
+    <div class="greeting-card">
+      <div>
+        <div class="greeting-name">Good to see you, Jayvee 👋</div>
+        <div class="greeting-sub">You came 15 minutes early today.</div>
+      </div>
+      <div class="punch-actions">
+        <div>
+          <div class="punch-btn" onclick="recordPunch('in')">
+            <div class="punch-icon in">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            </div>
+            <div>
+              <div class="punch-label">Time In</div>
+              <div id="punch-in" style="font-size:13px;color:var(--n80);">—</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="punch-btn" onclick="recordPunch('out')">
+            <div class="punch-icon out">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <div>
+              <div class="punch-label">Time Out</div>
+              <div id="punch-out" style="font-size:13px;color:var(--n80);">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leave Stats -->
+  <div style="margin-bottom:16px;">
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-label">Total leave allowance</div>
+        <div class="stat-value"><%= leaveAllowance %></div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Total leave taken</div>
+        <div class="stat-value"><%= leaveTaken %></div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Total leave available</div>
+        <div class="stat-value"><%= leaveAvailable %></div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Leave request pending</div>
+        <div class="stat-value"><%= leavePending %></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Announcements -->
+  <div style="margin-bottom:16px;">
+    <div class="card">
+      <div class="section-bar">
+        <div class="card-title" style="margin-bottom:0;">Announcements</div>
+        <a href="/administration/announcement" class="btn btn-outline btn-sm">View all</a>
+      </div>
+      <div class="table-wrap" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Start date</th>
+              <th>End date</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% announcements.forEach(a => { %>
+            <tr>
+              <td><%= a.title %></td>
+              <td class="text-muted"><%= a.start_date %></td>
+              <td class="text-muted"><%= a.end_date %></td>
+              <td><%= a.description %></td>
+            </tr>
+            <% }) %>
+            <% if (announcements.length === 0) { %>
+            <tr><td colspan="4" style="text-align:center;color:var(--n80);padding:24px;">No announcements</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats Row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="card" style="padding:20px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;font-size:14px;">Total Employees</div>
+        <div style="background:var(--primary);border-radius:8px;padding:6px;display:flex;align-items:center;justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+      </div>
+      <div style="font-size:32px;font-weight:700;color:var(--primary);line-height:1;"><%= totalEmployees %></div>
+      <div style="font-size:12px;color:var(--success-main);margin-top:6px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;"><polyline points="18 15 12 9 6 15"/></svg>
+        Active staff members
+      </div>
+    </div>
+
+    <div class="card" style="padding:20px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;font-size:14px;">Present Today</div>
+        <div style="background:var(--success-surface);border-radius:8px;padding:6px;display:flex;align-items:center;justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success-main)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      </div>
+      <div style="font-size:32px;font-weight:700;color:var(--success-main);line-height:1;"><%= presentToday %></div>
+      <div style="font-size:12px;color:var(--n80);margin-top:6px;">Clocked in today</div>
+    </div>
+
+    <div class="card" style="padding:20px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;font-size:14px;">Pending Leave</div>
+        <div style="background:var(--warning-surface);border-radius:8px;padding:6px;display:flex;align-items:center;justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning-main)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+      </div>
+      <div style="font-size:32px;font-weight:700;color:var(--warning-main);line-height:1;"><%= leavePending %></div>
+      <div style="font-size:12px;color:var(--n80);margin-top:6px;">Awaiting approval</div>
+    </div>
+  </div>
+
+  <!-- Celebration -->
+  <div class="card" style="padding:20px 32px;">
+    <div class="card-title">Celebration 🎉</div>
+    <div style="font-size:13px;font-weight:500;color:var(--n90);margin-bottom:12px;">This month</div>
+    <% if (birthdays.length > 0) { %>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;">
+      <% birthdays.forEach(b => { %>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--n20);border-radius:8px;padding:10px 16px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">
+          <%= b.name.split(' ').map(n=>n[0]).join('').substring(0,2) %>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--n100);"><%= b.name %></div>
+          <div style="font-size:12px;color:var(--n80);">Happy Birthday! 🎂</div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } else { %>
+    <div style="color:var(--n80);font-size:13px;">No birthdays this month 🙂</div>
+    <% } %>
+  </div>
+
+</div>
+
+<%- include('partials/footer') %>

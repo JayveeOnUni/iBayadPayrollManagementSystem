@@ -1,0 +1,179 @@
+<%- include('partials/header', { title: 'Daily Log', activeMenu: 'attendance', activePage: 'attendance-daily' }) %>
+
+<div class="page-header">
+  <h1 class="page-title">Attendance</h1>
+  <div class="page-actions">
+    <button class="btn btn-primary" onclick="openModal('modal-add-att')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Record
+    </button>
+  </div>
+</div>
+
+<div class="content-section">
+  <div class="tabs">
+    <a href="/attendance/daily-log" class="tab-btn active">Daily Log</a>
+    <a href="/attendance/request"   class="tab-btn">Request</a>
+    <a href="/attendance/details"   class="tab-btn">Details</a>
+    <a href="/attendance/summary"   class="tab-btn">Summary</a>
+  </div>
+
+  <!-- Quick stats -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+    <% [
+      { label:'Present', value: stats.present, color: 'var(--success-main)', bg: 'var(--success-surface)' },
+      { label:'Absent',  value: stats.absent,  color: 'var(--danger-main)',  bg: 'var(--danger-surface)' },
+      { label:'Late',    value: stats.late,    color: 'var(--warning-main)', bg: 'var(--warning-surface)' },
+      { label:'Total',   value: stats.total,   color: 'var(--info)',         bg: '#DBEAFE' },
+    ].forEach(s => { %>
+    <div class="card" style="padding:16px 20px;border-top:3px solid <%= s.color %>;">
+      <div style="font-size:12px;color:var(--n80);margin-bottom:6px;"><%= s.label %></div>
+      <div style="font-size:26px;font-weight:700;color:<%= s.color %>;line-height:1;"><%= s.value %></div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="card" style="padding:20px 24px;">
+    <div class="filters-row">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search employee…" oninput="filterTable('att-q', 'att-table')" id="att-q">
+      </div>
+      <input type="date" class="form-select" onchange="filterByDate(this.value)" style="background-image:none;" value="<%= filterDate || '' %>">
+      <select class="form-select" onchange="filterAttStatus(this.value)">
+        <option value="">All Status</option>
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+        <option value="Late">Late</option>
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table-lg" id="att-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Time In</th>
+            <th>Time Out</th>
+            <th>Hours</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% attendance.forEach((a, i) => { %>
+          <tr data-status="<%= a.status %>">
+            <td style="color:var(--n80);"><%= i + 1 %></td>
+            <td style="font-weight:500;"><%= a.employee_name %></td>
+            <td class="text-muted"><%= a.date %></td>
+            <td><%= a.time_in || '—' %></td>
+            <td><%= a.time_out || '—' %></td>
+            <td class="text-muted">
+              <% if (a.time_in && a.time_out) {
+                const [ih, im] = a.time_in.split(':').map(Number);
+                const [oh, om] = a.time_out.split(':').map(Number);
+                const mins = (oh * 60 + om) - (ih * 60 + im);
+                const hrs = Math.floor(mins / 60);
+                const min = mins % 60;
+              %>
+              <%= hrs %>h <%= min %>m
+              <% } else { %>—<% } %>
+            </td>
+            <td>
+              <span class="badge <%=
+                a.status === 'Present' ? 'badge-success' :
+                a.status === 'Late'    ? 'badge-warning' : 'badge-danger'
+              %>"><%= a.status %></span>
+            </td>
+            <td>
+              <div class="actions-col">
+                <form id="del-att-<%= a.id %>" action="/attendance/<%= a.id %>?_method=DELETE" method="POST">
+                  <button type="button" class="btn btn-sm" style="background:var(--n20);color:var(--n80);" onclick="confirmDelete('del-att-<%= a.id %>')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+          <% if (attendance.length === 0) { %>
+          <tr><td colspan="8" style="text-align:center;color:var(--n80);padding:32px;">No attendance records found.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span>Showing <%= attendance.length %> records</span>
+    </div>
+  </div>
+</div>
+
+<!-- Add Attendance Modal -->
+<div class="modal-overlay" id="modal-add-att">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Attendance Record</div>
+      <button class="modal-close" onclick="closeModal('modal-add-att')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form action="/attendance" method="POST">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Employee *</label>
+            <select class="form-input form-select" name="employee_id" required style="background-position:right 8px center;">
+              <% employees.forEach(e => { %>
+              <option value="<%= e.id %>" data-name="<%= e.name %>"><%= e.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date *</label>
+            <input class="form-input" type="date" name="date" required value="<%= new Date().toISOString().split('T')[0] %>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-input form-select" name="status" style="background-position:right 8px center;">
+              <option value="Present">Present</option>
+              <option value="Absent">Absent</option>
+              <option value="Late">Late</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time In</label>
+            <input class="form-input" type="time" name="time_in">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time Out</label>
+            <input class="form-input" type="time" name="time_out">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Notes</label>
+            <input class="form-input" name="notes" placeholder="Optional notes">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-att')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function filterAttStatus(v) {
+  document.querySelectorAll('#att-table tbody tr').forEach(row => {
+    row.style.display = (!v || row.dataset.status === v) ? '' : 'none';
+  });
+}
+function filterByDate(v) {
+  if (!v) { window.location.href = '/attendance/daily-log'; return; }
+  window.location.href = '/attendance/daily-log?date=' + v;
+}
+</script>
+
+<%- include('partials/footer') %>

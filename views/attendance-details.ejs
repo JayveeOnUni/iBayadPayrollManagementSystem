@@ -1,0 +1,71 @@
+<%- include('partials/header', { title: 'Attendance Details', activeMenu: 'attendance', activePage: 'attendance-details' }) %>
+
+<div class="page-header">
+  <h1 class="page-title">Attendance</h1>
+</div>
+
+<div class="content-section">
+  <div class="tabs">
+    <a href="/attendance/daily-log" class="tab-btn">Daily Log</a>
+    <a href="/attendance/request"   class="tab-btn">Request</a>
+    <a href="/attendance/details"   class="tab-btn active">Details</a>
+    <a href="/attendance/summary"   class="tab-btn">Summary</a>
+  </div>
+
+  <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <div class="search-box" style="min-width:200px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search employee…">
+    </div>
+    <select class="form-select">
+      <option>March 2025</option>
+      <option>February 2025</option>
+      <option>January 2025</option>
+    </select>
+  </div>
+
+  <div class="card" style="padding:20px 24px;">
+    <div class="table-wrap">
+      <table class="table-lg">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Dept.</th>
+            <% for(let d=1;d<=31;d++) { %><th style="text-align:center;min-width:30px;padding:8px 6px;"><%= d %></th><% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% employees.forEach(emp => { %>
+          <tr>
+            <td style="font-weight:500;white-space:nowrap;"><%= emp.name %></td>
+            <td style="font-size:11px;color:var(--n80);"><%= emp.department %></td>
+            <% for(let d=1;d<=31;d++) { %>
+            <% const rec = empAttMap[emp.id] && empAttMap[emp.id][d]; %>
+            <td style="text-align:center;padding:8px 4px;">
+              <% if (rec) { %>
+              <span style="font-size:10px;font-weight:600;color:<%=
+                rec.status==='Present'?'var(--success-main)':
+                rec.status==='Late'?'var(--warning-main)':'var(--danger-main)'
+              %>;">
+                <%= rec.status==='Present'?'P':rec.status==='Late'?'L':'A' %>
+              </span>
+              <% } else { %>
+              <span style="color:var(--n40);font-size:11px;">—</span>
+              <% } %>
+            </td>
+            <% } %>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--n80);">
+      <span style="color:var(--success-main);font-weight:600;">P = Present</span>
+      <span style="color:var(--warning-main);font-weight:600;">L = Late</span>
+      <span style="color:var(--danger-main);font-weight:600;">A = Absent</span>
+      <span style="color:var(--n40);">— = No Record</span>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
