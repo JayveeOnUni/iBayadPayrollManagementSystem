@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Figma__get_design_context",
+      "mcp__claude_ai_Figma__get_metadata",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/client/src/assets\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/client/src/components/ui\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/client/src/components/layout\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/client/src/layouts\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/client/src/pages/auth\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/server/src/controllers\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/server/src/routes\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/server/src/middleware\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/server/src/models\")",
+      "Bash(mkdir -p \"C:/Users/santi/OneDrive/Documents/iBayadPayrollManagementSystem/server/src/services\")"
+    ]
+  }
+}

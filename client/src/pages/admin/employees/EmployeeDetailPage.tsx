@@ -1,0 +1,214 @@
+import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Edit2, Mail, Phone, MapPin, Briefcase, Calendar, CreditCard } from 'lucide-react'
+import Card from '../../../components/ui/Card'
+import Button from '../../../components/ui/Button'
+import Badge from '../../../components/ui/Badge'
+import Avatar from '../../../components/ui/Avatar'
+import { formatDate, yearsOfService } from '../../../utils/dateHelpers'
+import { formatPeso, computeAllContributions } from '../../../utils/taxComputation'
+import type { Employee } from '../../../types'
+
+// Mock employee data
+const mockEmployee: Employee = {
+  id: '1',
+  employeeNumber: 'EMP-001',
+  firstName: 'Maria',
+  lastName: 'Santos',
+  email: 'maria.santos@ibayad.com',
+  phone: '09171234567',
+  birthDate: '1990-03-15',
+  gender: 'female',
+  civilStatus: 'single',
+  address: '123 Rizal Street, Brgy. Poblacion',
+  city: 'Makati',
+  province: 'Metro Manila',
+  zipCode: '1200',
+  departmentId: 'd1',
+  positionId: 'p1',
+  employmentType: 'regular',
+  employmentStatus: 'active',
+  hireDate: '2021-06-01',
+  basicSalary: 45000,
+  dailyRate: 2045,
+  hourlyRate: 255,
+  sssNumber: '33-1234567-8',
+  philhealthNumber: '12-345678901-2',
+  pagibigNumber: '1234-5678-9012',
+  tinNumber: '123-456-789-000',
+  bankName: 'BDO Unibank',
+  bankAccountNumber: '001234567890',
+  createdAt: '2021-06-01',
+  updatedAt: '2024-01-01',
+}
+
+interface InfoRowProps {
+  icon?: React.ReactNode
+  label: string
+  value?: string
+}
+
+function InfoRow({ icon, label, value }: InfoRowProps) {
+  return (
+    <div className="flex items-start gap-3 py-2.5">
+      {icon && <span className="mt-0.5 text-muted flex-shrink-0">{icon}</span>}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-muted">{label}</p>
+        <p className="text-sm font-medium text-ink">{value ?? '—'}</p>
+      </div>
+    </div>
+  )
+}
+
+export default function EmployeeDetailPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const employee = mockEmployee // In production: fetch by id
+
+  const fullName = `${employee.firstName} ${employee.lastName}`
+  const contributions = computeAllContributions(employee.basicSalary)
+
+  return (
+    <div className="space-y-5">
+      {/* Back + actions */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back to Employees
+        </button>
+        <Button size="sm" variant="outline" leftIcon={<Edit2 size={14} />}>
+          Edit Employee
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Left: Profile card */}
+        <div className="space-y-4">
+          <Card className="text-center">
+            <div className="flex flex-col items-center gap-3 py-2">
+              <Avatar name={fullName} size="xl" />
+              <div>
+                <h2 className="text-lg font-bold text-ink">{fullName}</h2>
+                <p className="text-sm text-muted">HR Officer</p>
+                <p className="text-xs text-slate-400">{employee.employeeNumber}</p>
+              </div>
+              <Badge variant="success" dot>
+                {employee.employmentStatus}
+              </Badge>
+            </div>
+
+            <div className="border-t border-border mt-3 pt-3 space-y-0.5">
+              <InfoRow icon={<Mail size={14} />} label="Email" value={employee.email} />
+              <InfoRow icon={<Phone size={14} />} label="Phone" value={employee.phone} />
+              <InfoRow
+                icon={<MapPin size={14} />}
+                label="Address"
+                value={`${employee.address}, ${employee.city}`}
+              />
+            </div>
+          </Card>
+
+          {/* Government IDs */}
+          <Card>
+            <h3 className="text-sm font-semibold text-ink mb-3">Government IDs</h3>
+            <div className="space-y-0.5">
+              <InfoRow label="SSS Number" value={employee.sssNumber} />
+              <InfoRow label="PhilHealth No." value={employee.philhealthNumber} />
+              <InfoRow label="Pag-IBIG No." value={employee.pagibigNumber} />
+              <InfoRow label="TIN" value={employee.tinNumber} />
+            </div>
+          </Card>
+        </div>
+
+        {/* Right: Details */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Employment Info */}
+          <Card>
+            <h3 className="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
+              <Briefcase size={16} className="text-muted" />
+              Employment Information
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+              <InfoRow label="Department" value="HR Department" />
+              <InfoRow label="Position" value="HR Officer" />
+              <InfoRow
+                label="Employment Type"
+                value={employee.employmentType.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
+              />
+              <InfoRow
+                label="Years of Service"
+                value={`${yearsOfService(employee.hireDate)} years`}
+              />
+              <InfoRow
+                icon={<Calendar size={14} />}
+                label="Hire Date"
+                value={formatDate(employee.hireDate)}
+              />
+              {employee.regularizationDate && (
+                <InfoRow label="Regularization Date" value={formatDate(employee.regularizationDate)} />
+              )}
+            </div>
+          </Card>
+
+          {/* Compensation */}
+          <Card>
+            <h3 className="text-sm font-semibold text-ink mb-4 flex items-center gap-2">
+              <CreditCard size={16} className="text-muted" />
+              Compensation & Deductions
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-brand-50 rounded-lg p-4 text-center">
+                <p className="text-xs text-muted mb-1">Monthly Basic Salary</p>
+                <p className="text-xl font-bold text-brand">{formatPeso(employee.basicSalary)}</p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-4 text-center">
+                <p className="text-xs text-muted mb-1">Daily Rate</p>
+                <p className="text-xl font-bold text-ink">{formatPeso(employee.dailyRate)}</p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-4 text-center">
+                <p className="text-xs text-muted mb-1">Hourly Rate</p>
+                <p className="text-xl font-bold text-ink">{formatPeso(employee.hourlyRate)}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
+                Monthly Contributions (Employee Share)
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'SSS', value: contributions.sss.employeeShare },
+                  { label: 'PhilHealth', value: contributions.philhealth.employeeShare },
+                  { label: 'Pag-IBIG', value: contributions.pagibig.employeeShare },
+                  { label: 'Withholding Tax', value: contributions.withholdingTax.monthlyTax },
+                ].map((c) => (
+                  <div key={c.label} className="text-center border border-border rounded-lg p-3">
+                    <p className="text-xs text-muted">{c.label}</p>
+                    <p className="text-sm font-semibold text-ink mt-0.5">{formatPeso(c.value)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-between items-center px-3 py-2.5 bg-slate-50 rounded-lg">
+                <span className="text-sm font-medium text-ink">Estimated Net Pay</span>
+                <span className="text-base font-bold text-emerald-600">
+                  {formatPeso(contributions.netPay)}
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Bank Info */}
+          <Card>
+            <h3 className="text-sm font-semibold text-ink mb-3">Banking Details</h3>
+            <div className="grid grid-cols-2 gap-x-6">
+              <InfoRow label="Bank Name" value={employee.bankName} />
+              <InfoRow label="Account Number" value={employee.bankAccountNumber} />
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}

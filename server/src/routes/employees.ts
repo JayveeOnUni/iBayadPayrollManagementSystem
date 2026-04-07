@@ -1,0 +1,38 @@
+import { Router } from 'express'
+import {
+  listEmployees,
+  getEmployee,
+  createEmployee,
+  updateEmployee,
+  deactivateEmployee,
+} from '../controllers/employeeController'
+import { authenticate, requireRole } from '../middleware/auth'
+import { asyncHandler, createError } from '../middleware/errorHandler'
+import pool from '../utils/db'
+
+const router = Router()
+
+router.use(authenticate)
+
+// Employee self-service: my profile
+router.get('/me', asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    `SELECT e.*, d.name AS department_name, p.title AS position_title
+     FROM employees e
+     LEFT JOIN departments d ON e.department_id = d.id
+     LEFT JOIN positions p ON e.position_id = p.id
+     WHERE e.id = $1`,
+    [req.user!.employeeId]
+  )
+  if (!result.rows[0]) throw createError('Profile not found', 404)
+  res.json({ success: true, data: result.rows[0] })
+}))
+
+// Admin routes
+router.get('/', requireRole('admin', 'hr_admin', 'finance_admin'), listEmployees)
+router.post('/', requireRole('admin', 'hr_admin'), createEmployee)
+router.get('/:id', requireRole('admin', 'hr_admin', 'finance_admin'), getEmployee)
+router.put('/:id', requireRole('admin', 'hr_admin'), updateEmployee)
+router.delete('/:id', requireRole('admin', 'hr_admin'), deactivateEmployee)
+
+export default router
