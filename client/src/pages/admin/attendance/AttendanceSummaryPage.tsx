@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Table from '../../../components/ui/Table'
 import Avatar from '../../../components/ui/Avatar'
 import { format, addMonths, subMonths } from '../../../utils/dateHelpers'
+import { attendanceService } from '../../../services/attendanceService'
+import { employeeService } from '../../../services/employeeService'
 
 interface AttendanceSummaryRow {
   employeeId: string
@@ -17,14 +19,65 @@ interface AttendanceSummaryRow {
   totalHoursWorked: number
 }
 
-const mockSummary: AttendanceSummaryRow[] = [
-  { employeeId: '1', name: 'Maria Santos', daysPresent: 22, daysAbsent: 0, daysLate: 1, totalLateMinutes: 5, totalOvertimeHours: 3, totalHoursWorked: 179 },
-  { employeeId: '2', name: 'Juan dela Cruz', daysPresent: 20, daysAbsent: 2, daysLate: 3, totalLateMinutes: 95, totalOvertimeHours: 0, totalHoursWorked: 160 },
-  { employeeId: '3', name: 'Ana Reyes', daysPresent: 21, daysAbsent: 1, daysLate: 0, totalLateMinutes: 0, totalOvertimeHours: 1.5, totalHoursWorked: 169.5 },
-]
-
 export default function AttendanceSummaryPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1))
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [summary, setSummary] = useState<AttendanceSummaryRow[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        setIsLoading(true)
+        setMessage(null)
+        const employees = await employeeService.list({ limit: 100, status: 'active' })
+        const month = currentMonth.getMonth() + 1
+        const year = currentMonth.getFullYear()
+        const rows = await Promise.all(employees.data.map(async (employee) => {
+          const res = await attendanceService.getSummary(employee.id, month, year)
+          const data = res.data as unknown as Record<string, string | number>
+          return {
+            employeeId: employee.id,
+            name: `${employee.firstName} ${employee.lastName}`,
+            daysPresent: Number(data.present_days ?? 0),
+            daysAbsent: Number(data.absent_days ?? 0),
+            daysLate: Number(data.late_days ?? 0),
+            totalLateMinutes: Number(data.total_late_minutes ?? 0),
+            totalOvertimeHours: Number(data.total_overtime_hours ?? 0),
+            totalHoursWorked: Math.round((Number(data.total_worked_minutes ?? 0) / 60) * 100) / 100,
+          }
+        }))
+        setSummary(rows)
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Unable to load attendance summary.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSummary()
+  }, [currentMonth])
+
+  const exportSummary = () => {
+    const csv = [
+      ['Employee', 'Present', 'Absent', 'Late Days', 'Late Minutes', 'Overtime Hours', 'Total Hours'],
+      ...summary.map((row) => [
+        row.name,
+        String(row.daysPresent),
+        String(row.daysAbsent),
+        String(row.daysLate),
+        String(row.totalLateMinutes),
+        String(row.totalOvertimeHours),
+        String(row.totalHoursWorked),
+      ]),
+    ].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `attendance-summary-${format(currentMonth, 'yyyy-MM')}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="space-y-5">
@@ -33,10 +86,16 @@ export default function AttendanceSummaryPage() {
           <h2 className="text-xl font-bold text-ink">Attendance Summary</h2>
           <p className="text-sm text-muted mt-0.5">Monthly attendance overview per employee</p>
         </div>
-        <Button variant="outline" size="sm" leftIcon={<Download size={14} />}>
+        <Button variant="outline" size="sm" leftIcon={<Download size={14} />} onClick={exportSummary}>
           Export Report
         </Button>
       </div>
+
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
 
       {/* Month navigator */}
       <Card>
@@ -61,8 +120,9 @@ export default function AttendanceSummaryPage() {
 
       <Card padding="none">
         <Table
-          data={mockSummary}
+          data={summary}
           rowKey={(r) => r.employeeId}
+          isLoading={isLoading}
           columns={[
             {
               key: 'employee',

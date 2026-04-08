@@ -1,5 +1,6 @@
 import { Plus, LogIn, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 
 const announcements = [
@@ -19,6 +20,7 @@ const leaveStats = [
 
 export default function AdminDashboardPage() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const firstName = user?.firstName ?? 'User'
   const today = format(new Date(), 'EEEE, MMMM d, yyyy')
 
@@ -28,11 +30,18 @@ export default function AdminDashboardPage() {
       <div className="bg-surface px-8 py-4 flex items-center justify-between">
         <h1 className="text-[20px] font-medium text-ink tracking-[-0.017em]">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <button className="w-8 h-7 bg-primary flex items-center justify-center rounded-md hover:bg-primary-hover transition-colors">
+          <button
+            onClick={() => navigate('/admin/employees')}
+            className="w-8 h-7 bg-primary flex items-center justify-center rounded-md hover:bg-primary-hover transition-colors"
+            title="Open employees"
+          >
             <Plus size={16} className="text-white" />
           </button>
-          <button className="h-7 px-4 bg-white border border-border text-ink text-sm font-medium rounded-md hover:bg-surface transition-colors">
-            Manager POV
+          <button
+            onClick={() => navigate('/admin/attendance/summary')}
+            className="h-7 px-4 bg-white border border-border text-ink text-sm font-medium rounded-md hover:bg-surface transition-colors"
+          >
+            Attendance Summary
           </button>
         </div>
       </div>

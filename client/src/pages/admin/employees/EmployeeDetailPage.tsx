@@ -1,45 +1,16 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Edit2, Mail, Phone, MapPin, Briefcase, Calendar, CreditCard } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
+import Modal from '../../../components/ui/Modal'
+import Input from '../../../components/ui/Input'
 import { formatDate, yearsOfService } from '../../../utils/dateHelpers'
 import { formatPeso, computeAllContributions } from '../../../utils/taxComputation'
 import type { Employee } from '../../../types'
-
-// Mock employee data
-const mockEmployee: Employee = {
-  id: '1',
-  employeeNumber: 'EMP-001',
-  firstName: 'Maria',
-  lastName: 'Santos',
-  email: 'maria.santos@ibayad.com',
-  phone: '09171234567',
-  birthDate: '1990-03-15',
-  gender: 'female',
-  civilStatus: 'single',
-  address: '123 Rizal Street, Brgy. Poblacion',
-  city: 'Makati',
-  province: 'Metro Manila',
-  zipCode: '1200',
-  departmentId: 'd1',
-  positionId: 'p1',
-  employmentType: 'regular',
-  employmentStatus: 'active',
-  hireDate: '2021-06-01',
-  basicSalary: 45000,
-  dailyRate: 2045,
-  hourlyRate: 255,
-  sssNumber: '33-1234567-8',
-  philhealthNumber: '12-345678901-2',
-  pagibigNumber: '1234-5678-9012',
-  tinNumber: '123-456-789-000',
-  bankName: 'BDO Unibank',
-  bankAccountNumber: '001234567890',
-  createdAt: '2021-06-01',
-  updatedAt: '2024-01-01',
-}
+import { employeeService } from '../../../services/employeeService'
 
 interface InfoRowProps {
   icon?: React.ReactNode
@@ -60,9 +31,56 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 }
 
 export default function EmployeeDetailPage() {
-  const { id } = useParams()
   const navigate = useNavigate()
-  const employee = mockEmployee // In production: fetch by id
+  const { id } = useParams()
+  const [employee, setEmployee] = useState<Employee | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ phone: '', address: '', city: '', basicSalary: 0 })
+
+  useEffect(() => {
+    const loadEmployee = async () => {
+      if (!id) return
+      try {
+        setIsLoading(true)
+        setError(null)
+        const res = await employeeService.getById(id)
+        setEmployee(res.data)
+        setEditForm({
+          phone: res.data.phone ?? '',
+          address: res.data.address ?? '',
+          city: res.data.city ?? '',
+          basicSalary: res.data.basicSalary,
+        })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to load employee.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadEmployee()
+  }, [id])
+
+  const saveEmployee = async () => {
+    if (!employee) return
+    try {
+      setIsSaving(true)
+      setError(null)
+      const res = await employeeService.update(employee.id, editForm)
+      setEmployee(res.data)
+      setIsEditOpen(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update employee.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) return <div className="p-8 text-sm text-muted">Loading employee...</div>
+  if (!employee) return <div className="p-8 text-sm text-red-700">{error ?? 'Employee not found.'}</div>
 
   const fullName = `${employee.firstName} ${employee.lastName}`
   const contributions = computeAllContributions(employee.basicSalary)
@@ -78,10 +96,16 @@ export default function EmployeeDetailPage() {
           <ArrowLeft size={16} />
           Back to Employees
         </button>
-        <Button size="sm" variant="outline" leftIcon={<Edit2 size={14} />}>
+        <Button size="sm" variant="outline" leftIcon={<Edit2 size={14} />} onClick={() => setIsEditOpen(true)}>
           Edit Employee
         </Button>
       </div>
+
+      {error && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Profile card */}
@@ -91,7 +115,7 @@ export default function EmployeeDetailPage() {
               <Avatar name={fullName} size="xl" />
               <div>
                 <h2 className="text-lg font-bold text-ink">{fullName}</h2>
-                <p className="text-sm text-muted">HR Officer</p>
+                <p className="text-sm text-muted">{employee.position?.title ?? '—'}</p>
                 <p className="text-xs text-slate-400">{employee.employeeNumber}</p>
               </div>
               <Badge variant="success" dot>
@@ -131,8 +155,8 @@ export default function EmployeeDetailPage() {
               Employment Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-              <InfoRow label="Department" value="HR Department" />
-              <InfoRow label="Position" value="HR Officer" />
+              <InfoRow label="Department" value={employee.department?.name} />
+              <InfoRow label="Position" value={employee.position?.title} />
               <InfoRow
                 label="Employment Type"
                 value={employee.employmentType.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
@@ -209,6 +233,26 @@ export default function EmployeeDetailPage() {
           </Card>
         </div>
       </div>
+
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title="Edit Employee"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button onClick={saveEmployee} isLoading={isSaving}>Save Changes</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Phone" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+          <Input label="Address" value={editForm.address} onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))} />
+          <Input label="City" value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} />
+          <Input label="Basic Salary" type="number" value={editForm.basicSalary} onChange={(e) => setEditForm((f) => ({ ...f, basicSalary: Number(e.target.value) }))} />
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -27,10 +27,11 @@ class ApiClient {
       throw new Error('Unauthorized')
     }
 
-    const data = await res.json()
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : undefined
 
     if (!res.ok) {
-      throw new Error(data.message ?? `HTTP error ${res.status}`)
+      throw new Error(data?.message ?? `HTTP error ${res.status}`)
     }
 
     return data as T

@@ -6,14 +6,6 @@
 
 // ─── SSS Contribution ────────────────────────────────────────────────────────
 
-interface SSSBracket {
-  min: number
-  max: number
-  employeeContribution: number
-  employerContribution: number
-  totalContribution: number
-}
-
 /**
  * Compute SSS contribution (2023 schedule).
  * Based on monthly basic pay.
@@ -26,7 +18,6 @@ export function computeSSS(monthlyBasicPay: number): {
   // Simplified SSS table (2023). Full table has ~50 brackets.
   const minPay = 4_250
   const maxPay = 29_750
-  const baseContribRate = 0.14 // 14% total; 4.5% employee, 9.5% employer
   const employeeRate = 0.045
   const employerRate = 0.095
 

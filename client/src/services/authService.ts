@@ -1,9 +1,9 @@
 import { api } from './api'
-import type { AuthResponse, LoginCredentials, User } from '../types'
+import type { ApiResponse, AuthResponse, LoginCredentials, User } from '../types'
 
 export const authService = {
   login: (credentials: LoginCredentials) =>
-    api.post<AuthResponse>('/auth/login', credentials),
+    api.post<ApiResponse<AuthResponse>>('/auth/login', credentials).then((res) => res.data),
 
   logout: () =>
     api.post<void>('/auth/logout'),
@@ -12,10 +12,10 @@ export const authService = {
     api.get<{ data: User }>('/auth/me'),
 
   refreshToken: (refreshToken: string) =>
-    api.post<AuthResponse>('/auth/refresh', { refreshToken }),
+    api.post<ApiResponse<{ accessToken: string }>>('/auth/refresh', { refreshToken }).then((res) => res.data),
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    api.post<void>('/auth/change-password', { currentPassword, newPassword }),
+    api.put<void>('/auth/change-password', { currentPassword, newPassword }),
 
   forgotPassword: (email: string) =>
     api.post<void>('/auth/forgot-password', { email }),

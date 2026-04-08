@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form'
+import { useState } from 'react'
 import { Building2, Save } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -19,6 +20,7 @@ interface GeneralSettingsForm {
 }
 
 export default function GeneralSettingsPage() {
+  const [message, setMessage] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors } } = useForm<GeneralSettingsForm>({
     defaultValues: {
       companyName: 'iBayad Corporation',
@@ -36,8 +38,8 @@ export default function GeneralSettingsPage() {
   })
 
   const onSubmit = (data: GeneralSettingsForm) => {
-    console.log('Saving general settings:', data)
-    alert('Settings saved successfully.')
+    localStorage.setItem('ibayad-general-settings', JSON.stringify(data))
+    setMessage('General settings saved for this workstation.')
   }
 
   return (
@@ -46,6 +48,8 @@ export default function GeneralSettingsPage() {
         <h2 className="text-xl font-bold text-ink">General Settings</h2>
         <p className="text-sm text-muted mt-0.5">Configure company information and government IDs</p>
       </div>
+
+      {message && <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">{message}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Card>

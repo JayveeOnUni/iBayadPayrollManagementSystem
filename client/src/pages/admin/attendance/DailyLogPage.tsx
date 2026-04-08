@@ -1,26 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Filter, Download, ChevronLeft, ChevronRight } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Table from '../../../components/ui/Table'
 import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
-import { formatDate, formatTime, addDays, subMonths, addMonths, format } from '../../../utils/dateHelpers'
+import { formatDate, formatTime, addDays, format } from '../../../utils/dateHelpers'
 import type { AttendanceRecord } from '../../../types'
+import { attendanceService } from '../../../services/attendanceService'
 
 const today = new Date()
-
-const mockLogs: AttendanceRecord[] = [
-  { id: '1', employeeId: '1', date: format(today, 'yyyy-MM-dd'), timeIn: '08:02', timeOut: '17:05', hoursWorked: 9, overtimeHours: 0, lateMinutes: 2, undertimeMinutes: 0, status: 'present', createdAt: '', updatedAt: '' },
-  { id: '2', employeeId: '2', date: format(today, 'yyyy-MM-dd'), timeIn: '09:15', timeOut: '18:00', hoursWorked: 8, overtimeHours: 0, lateMinutes: 75, undertimeMinutes: 0, status: 'late', createdAt: '', updatedAt: '' },
-  { id: '3', employeeId: '3', date: format(today, 'yyyy-MM-dd'), timeIn: undefined, timeOut: undefined, hoursWorked: 0, overtimeHours: 0, lateMinutes: 0, undertimeMinutes: 0, status: 'absent', createdAt: '', updatedAt: '' },
-]
-
-const employeeNames: Record<string, string> = {
-  '1': 'Maria Santos',
-  '2': 'Juan dela Cruz',
-  '3': 'Ana Reyes',
-}
 
 const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {
   present: 'success',
@@ -33,6 +22,57 @@ const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'neutral'
 
 export default function DailyLogPage() {
   const [selectedDate, setSelectedDate] = useState(today)
+  const [logs, setLogs] = useState<AttendanceRecord[]>([])
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadLogs = async () => {
+      try {
+        setIsLoading(true)
+        setMessage(null)
+        const date = format(selectedDate, 'yyyy-MM-dd')
+        const res = await attendanceService.list({ startDate: date, endDate: date, status: status || undefined })
+        setLogs(res.data)
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Unable to load attendance logs.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadLogs()
+  }, [selectedDate, status])
+
+  const filteredLogs = useMemo(() => logs.filter((log) => {
+    const employeeName = log.employee ? `${log.employee.firstName} ${log.employee.lastName}`.toLowerCase() : ''
+    return employeeName.includes(search.toLowerCase())
+  }), [logs, search])
+
+  const countStatus = (value: AttendanceRecord['status']) => filteredLogs.filter((log) => log.status === value).length
+
+  const exportLogs = () => {
+    const csv = [
+      ['Employee', 'Date', 'Time In', 'Time Out', 'Hours', 'Late Minutes', 'Status'],
+      ...filteredLogs.map((log) => [
+        log.employee ? `${log.employee.firstName} ${log.employee.lastName}` : log.employeeId,
+        log.date,
+        log.timeIn ?? '',
+        log.timeOut ?? '',
+        String(log.hoursWorked),
+        String(log.lateMinutes),
+        log.status,
+      ]),
+    ].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `attendance-${format(selectedDate, 'yyyy-MM-dd')}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="space-y-5">
@@ -41,10 +81,16 @@ export default function DailyLogPage() {
           <h2 className="text-xl font-bold text-ink">Daily Attendance Log</h2>
           <p className="text-sm text-muted mt-0.5">Track employee time-in and time-out records</p>
         </div>
-        <Button variant="outline" size="sm" leftIcon={<Download size={14} />}>
+        <Button variant="outline" size="sm" leftIcon={<Download size={14} />} onClick={exportLogs}>
           Export
         </Button>
       </div>
+
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
 
       {/* Date navigator */}
       <Card>
@@ -70,10 +116,10 @@ export default function DailyLogPage() {
         {/* Summary pills */}
         <div className="flex gap-3 mt-4 flex-wrap">
           {[
-            { label: 'Present', count: 107, variant: 'success' as const },
-            { label: 'Late', count: 8, variant: 'warning' as const },
-            { label: 'Absent', count: 5, variant: 'danger' as const },
-            { label: 'On Leave', count: 4, variant: 'info' as const },
+            { label: 'Present', count: countStatus('present'), variant: 'success' as const },
+            { label: 'Late', count: countStatus('late'), variant: 'warning' as const },
+            { label: 'Absent', count: countStatus('absent'), variant: 'danger' as const },
+            { label: 'On Leave', count: countStatus('on_leave'), variant: 'info' as const },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-border">
               <Badge variant={s.variant}>{s.label}</Badge>
@@ -88,24 +134,34 @@ export default function DailyLogPage() {
           <input
             type="text"
             placeholder="Search employee..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="flex-1 max-w-xs px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
-          <Button variant="outline" size="sm" leftIcon={<Filter size={14} />}>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<Filter size={14} />}
+            onClick={() => setStatus((current) => current ? '' : 'late')}
+          >
             Filter Status
           </Button>
         </div>
 
         <Table
-          data={mockLogs}
+          data={filteredLogs}
           rowKey={(r) => r.id}
+          isLoading={isLoading}
           columns={[
             {
               key: 'employee',
               header: 'Employee',
               render: (row) => (
                 <div className="flex items-center gap-3">
-                  <Avatar name={employeeNames[row.employeeId]} size="sm" />
-                  <span className="text-sm font-medium text-ink">{employeeNames[row.employeeId]}</span>
+                  <Avatar name={row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : 'Employee'} size="sm" />
+                  <span className="text-sm font-medium text-ink">
+                    {row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : row.employeeId}
+                  </span>
                 </div>
               ),
             },
@@ -113,14 +169,14 @@ export default function DailyLogPage() {
               key: 'timeIn',
               header: 'Time In',
               render: (row) => (
-                <span className="text-sm">{row.timeIn ? formatTime(`2000-01-01T${row.timeIn}`) : '—'}</span>
+                <span className="text-sm">{row.timeIn ? formatTime(row.timeIn) : '—'}</span>
               ),
             },
             {
               key: 'timeOut',
               header: 'Time Out',
               render: (row) => (
-                <span className="text-sm">{row.timeOut ? formatTime(`2000-01-01T${row.timeOut}`) : '—'}</span>
+                <span className="text-sm">{row.timeOut ? formatTime(row.timeOut) : '—'}</span>
               ),
             },
             {

@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Plus, Edit2, Clock } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
+import Modal from '../../../components/ui/Modal'
+import Input from '../../../components/ui/Input'
 import type { Shift } from '../../../types'
 
 const mockShifts: Shift[] = [
@@ -18,6 +21,39 @@ function formatShiftTime(time: string): string {
 }
 
 export default function ShiftsPage() {
+  const [shifts, setShifts] = useState<Shift[]>(mockShifts)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingShift, setEditingShift] = useState<Shift | null>(null)
+  const [form, setForm] = useState({ name: '', startTime: '08:00', endTime: '17:00', breakMinutes: 60 })
+
+  const openShiftModal = (shift?: Shift) => {
+    setEditingShift(shift ?? null)
+    setForm({
+      name: shift?.name ?? '',
+      startTime: shift?.startTime ?? '08:00',
+      endTime: shift?.endTime ?? '17:00',
+      breakMinutes: shift?.breakMinutes ?? 60,
+    })
+    setIsModalOpen(true)
+  }
+
+  const saveShift = () => {
+    if (!form.name) return
+    const shift: Shift = {
+      id: editingShift?.id ?? crypto.randomUUID(),
+      name: form.name,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      breakMinutes: form.breakMinutes,
+      workingHoursPerDay: 8,
+      isNightShift: Number(form.startTime.slice(0, 2)) >= 18,
+      createdAt: editingShift?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    setShifts((current) => editingShift ? current.map((item) => item.id === shift.id ? shift : item) : [...current, shift])
+    setIsModalOpen(false)
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -25,11 +61,11 @@ export default function ShiftsPage() {
           <h2 className="text-xl font-bold text-ink">Work Shifts</h2>
           <p className="text-sm text-muted mt-0.5">Manage employee shift schedules</p>
         </div>
-        <Button size="sm" leftIcon={<Plus size={14} />}>Add Shift</Button>
+        <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => openShiftModal()}>Add Shift</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {mockShifts.map((shift) => (
+        {shifts.map((shift) => (
           <Card key={shift.id}>
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -43,7 +79,7 @@ export default function ShiftsPage() {
                   )}
                 </div>
               </div>
-              <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />}>Edit</Button>
+              <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />} onClick={() => openShiftModal(shift)}>Edit</Button>
             </div>
 
             <div className="space-y-2 mt-4">
@@ -67,6 +103,26 @@ export default function ShiftsPage() {
           </Card>
         ))}
       </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingShift ? 'Edit Shift' : 'Add Shift'}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button onClick={saveShift}>Save Shift</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Shift Name" value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} required />
+          <Input label="Start Time" type="time" value={form.startTime} onChange={(e) => setForm((current) => ({ ...current, startTime: e.target.value }))} required />
+          <Input label="End Time" type="time" value={form.endTime} onChange={(e) => setForm((current) => ({ ...current, endTime: e.target.value }))} required />
+          <Input label="Break Minutes" type="number" value={form.breakMinutes} onChange={(e) => setForm((current) => ({ ...current, breakMinutes: Number(e.target.value) }))} required />
+        </div>
+      </Modal>
     </div>
   )
 }

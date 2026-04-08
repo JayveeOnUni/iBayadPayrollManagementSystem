@@ -5,6 +5,7 @@ import {
   createEmployee,
   updateEmployee,
   deactivateEmployee,
+  activateEmployee,
 } from '../controllers/employeeController'
 import { authenticate, requireRole } from '../middleware/auth'
 import { asyncHandler, createError } from '../middleware/errorHandler'
@@ -33,6 +34,7 @@ router.get('/', requireRole('admin', 'hr_admin', 'finance_admin'), listEmployees
 router.post('/', requireRole('admin', 'hr_admin'), createEmployee)
 router.get('/:id', requireRole('admin', 'hr_admin', 'finance_admin'), getEmployee)
 router.put('/:id', requireRole('admin', 'hr_admin'), updateEmployee)
+router.put('/:id/activate', requireRole('admin', 'hr_admin'), activateEmployee)
 router.delete('/:id', requireRole('admin', 'hr_admin'), deactivateEmployee)
 
 export default router

@@ -1,5 +1,7 @@
-import { LogIn, LogOut, Plus } from 'lucide-react'
+import { LogIn, LogOut } from 'lucide-react'
+import { useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
+import { attendanceService } from '../../services/attendanceService'
 
 const announcements = [
   { title: 'Scrum Master', startDate: 'Dec 4, 2019 21:42', endDate: 'Dec 7, 2019 23:26', description: 'Corrected item alignment' },
@@ -53,7 +55,23 @@ function ProgressBar({ percent }: ProgressBarProps) {
 
 export default function EmployeeDashboardPage() {
   const { user } = useAuthStore()
+  const [message, setMessage] = useState<string | null>(null)
   const firstName = user?.firstName ?? 'User'
+
+  const punch = async (action: 'in' | 'out') => {
+    try {
+      setMessage(null)
+      if (action === 'in') {
+        await attendanceService.clockIn()
+        setMessage('Time in recorded.')
+      } else {
+        await attendanceService.clockOut()
+        setMessage('Time out recorded.')
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to update attendance.')
+    }
+  }
 
   return (
     <div className="bg-surface min-h-full">
@@ -61,17 +79,28 @@ export default function EmployeeDashboardPage() {
       <div className="bg-surface px-8 py-4 flex items-center justify-between">
         <h1 className="text-[20px] font-medium text-ink tracking-[-0.017em]">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 h-7 px-4 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition-colors">
-            <Plus size={14} />
-            Buddy Punching
+          <button
+            onClick={() => punch('in')}
+            className="flex items-center gap-1.5 h-7 px-4 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition-colors"
+          >
+            Time In
           </button>
-          <button className="h-7 px-4 bg-white border border-border text-ink text-sm font-medium rounded-md hover:bg-surface transition-colors">
-            Manager POV
+          <button
+            onClick={() => punch('out')}
+            className="h-7 px-4 bg-white border border-border text-ink text-sm font-medium rounded-md hover:bg-surface transition-colors"
+          >
+            Time Out
           </button>
         </div>
       </div>
 
       <div className="px-8 pb-8 space-y-4">
+        {message && (
+          <div className="text-sm text-ink bg-white border border-border rounded-lg px-4 py-3">
+            {message}
+          </div>
+        )}
+
         {/* Greeting card */}
         <div className="bg-white rounded-lg px-4 py-3 flex items-center justify-between">
           <div>

@@ -138,19 +138,48 @@ export const getAttendanceSummary = asyncHandler(async (req: Request, res: Respo
 })
 
 export const getAttendanceRequests = asyncHandler(async (req: Request, res: Response) => {
+  const params: unknown[] = []
+  const where = req.query.status ? 'WHERE ar.status = $1' : ''
+  if (req.query.status) params.push(req.query.status)
+
   const result = await pool.query(
     `SELECT ar.*, e.first_name, e.last_name, e.employee_number
      FROM attendance_requests ar
      JOIN employees e ON ar.employee_id = e.id
-     WHERE ar.status = 'pending'
-     ORDER BY ar.created_at DESC`
+     ${where}
+     ORDER BY ar.created_at DESC`,
+    params
   )
   res.json({ success: true, data: result.rows })
+})
+
+export const createAttendanceRequest = asyncHandler(async (req: Request, res: Response) => {
+  const { date, requestedStatus, requestedTimeIn, requestedTimeOut, reason } = req.body
+  if (!req.user!.employeeId) throw createError('Only employee-linked accounts can submit attendance requests', 400)
+  if (!date || !reason) throw createError('date and reason are required', 400)
+
+  const result = await pool.query(
+    `INSERT INTO attendance_requests (
+       employee_id, date, requested_status, requested_time_in, requested_time_out, reason, status
+     ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+     RETURNING *`,
+    [
+      req.user!.employeeId,
+      date,
+      requestedStatus ?? 'present',
+      requestedTimeIn || null,
+      requestedTimeOut || null,
+      reason,
+    ]
+  )
+
+  res.status(201).json({ success: true, data: result.rows[0] })
 })
 
 export const approveAttendanceRequest = asyncHandler(async (req: Request, res: Response) => {
   const { action, remarks } = req.body // action: 'approve' | 'reject'
   if (!action) throw createError('action is required', 400)
+  if (action !== 'approve' && action !== 'reject') throw createError('action must be approve or reject', 400)
 
   const status = action === 'approve' ? 'approved' : 'rejected'
   const result = await pool.query(
@@ -165,10 +194,15 @@ export const approveAttendanceRequest = asyncHandler(async (req: Request, res: R
   if (action === 'approve') {
     const request = result.rows[0]
     await pool.query(
-      `UPDATE attendance SET status = $1, time_in = COALESCE($2, time_in), time_out = COALESCE($3, time_out)
-       WHERE employee_id = $4 AND date = $5`,
+      `INSERT INTO attendance (employee_id, date, status, time_in, time_out, created_by)
+       VALUES ($4, $5, $1, $2, $3, $6)
+       ON CONFLICT (employee_id, date) DO UPDATE
+       SET status = EXCLUDED.status,
+           time_in = COALESCE(EXCLUDED.time_in, attendance.time_in),
+           time_out = COALESCE(EXCLUDED.time_out, attendance.time_out),
+           updated_at = NOW()`,
       [request.requested_status, request.requested_time_in, request.requested_time_out,
-       request.employee_id, request.date]
+       request.employee_id, request.date, req.user!.userId]
     )
   }
 

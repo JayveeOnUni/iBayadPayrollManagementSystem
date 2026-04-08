@@ -38,7 +38,7 @@ import ProfilePage from './pages/employee/ProfilePage'
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (user?.role !== 'admin' && user?.role !== 'hr_admin' && user?.role !== 'finance_admin') {
+  if (user?.role !== 'super_admin' && user?.role !== 'admin' && user?.role !== 'hr_admin' && user?.role !== 'finance_admin') {
     return <Navigate to="/employee/dashboard" replace />
   }
   return <>{children}</>

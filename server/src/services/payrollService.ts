@@ -163,7 +163,7 @@ export async function processBatchPayroll(payrollPeriodId: string): Promise<{
             COALESCE(SUM(a.overtime_hours), 0) AS overtime_hours,
             COALESCE(SUM(a.holiday_hours), 0) AS holiday_hours,
             COALESCE(SUM(a.night_diff_hours), 0) AS night_diff_hours,
-            (SELECT COALESCE(SUM(amount), 0) FROM loans l WHERE l.employee_id = e.id AND l.is_active = true) AS loan_deductions
+            (SELECT COALESCE(SUM(monthly_payment), 0) FROM loans l WHERE l.employee_id = e.id AND l.is_active = true) AS loan_deductions
      FROM employees e
      LEFT JOIN payroll_periods pp ON pp.id = $1
      LEFT JOIN attendance a ON a.employee_id = e.id
@@ -179,7 +179,13 @@ export async function processBatchPayroll(payrollPeriodId: string): Promise<{
   for (const emp of employees.rows) {
     try {
       const workDaysPerMonth = emp.work_days_per_month ?? 22
-      const totalWorkDays = countWorkingDays(new Date(), new Date()) // simplified
+      const period = await pool.query(
+        `SELECT start_date, end_date FROM payroll_periods WHERE id = $1`,
+        [payrollPeriodId]
+      )
+      const totalWorkDays = period.rows[0]
+        ? countWorkingDays(new Date(period.rows[0].start_date), new Date(period.rows[0].end_date))
+        : workDaysPerMonth
       const daysWorked = Math.max(0, totalWorkDays - Number(emp.absence_days))
 
       const result = computePayroll({

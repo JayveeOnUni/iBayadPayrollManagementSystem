@@ -1,5 +1,6 @@
 import { api } from './api'
-import type { Employee, EmployeeFormData, PaginatedResponse, ApiResponse } from '../types'
+import type { EmployeeFormData, PaginatedResponse, ApiResponse } from '../types'
+import { mapEmployee } from './mappers'
 
 export interface EmployeeListParams {
   page?: number
@@ -12,22 +13,32 @@ export interface EmployeeListParams {
 
 export const employeeService = {
   list: (params?: EmployeeListParams) =>
-    api.get<PaginatedResponse<Employee>>('/employees', params as Record<string, string | number | boolean>),
+    api.get<PaginatedResponse<Record<string, unknown>>>('/employees', params as Record<string, string | number | boolean>)
+      .then((res) => ({ ...res, data: res.data.map(mapEmployee) })),
 
   getById: (id: string) =>
-    api.get<ApiResponse<Employee>>(`/employees/${id}`),
+    api.get<ApiResponse<Record<string, unknown>>>(`/employees/${id}`)
+      .then((res) => ({ ...res, data: mapEmployee(res.data) })),
+
+  getMe: () =>
+    api.get<ApiResponse<Record<string, unknown>>>('/employees/me')
+      .then((res) => ({ ...res, data: mapEmployee(res.data) })),
 
   create: (data: EmployeeFormData) =>
-    api.post<ApiResponse<Employee>>('/employees', data),
+    api.post<ApiResponse<Record<string, unknown>>>('/employees', data)
+      .then((res) => ({ ...res, data: mapEmployee(res.data) })),
 
   update: (id: string, data: Partial<EmployeeFormData>) =>
-    api.put<ApiResponse<Employee>>(`/employees/${id}`, data),
+    api.put<ApiResponse<Record<string, unknown>>>(`/employees/${id}`, data)
+      .then((res) => ({ ...res, data: mapEmployee(res.data) })),
 
   deactivate: (id: string) =>
-    api.patch<ApiResponse<Employee>>(`/employees/${id}/deactivate`),
+    api.delete<ApiResponse<Record<string, unknown>>>(`/employees/${id}`)
+      .then((res) => ({ ...res, data: mapEmployee(res.data) })),
 
   activate: (id: string) =>
-    api.patch<ApiResponse<Employee>>(`/employees/${id}/activate`),
+    api.put<ApiResponse<Record<string, unknown>>>(`/employees/${id}/activate`)
+      .then((res) => ({ ...res, data: mapEmployee(res.data) })),
 
   delete: (id: string) =>
     api.delete<ApiResponse<void>>(`/employees/${id}`),

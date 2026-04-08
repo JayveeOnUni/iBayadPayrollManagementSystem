@@ -1,22 +1,33 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Card from '../../../components/ui/Card'
-import Badge from '../../../components/ui/Badge'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addDays, isSameDay, isWithinInterval, addMonths, subMonths, parseISO
 } from '../../../utils/dateHelpers'
-
-const mockLeaveEvents = [
-  { id: '1', name: 'Maria Santos', type: 'vacation', start: '2026-04-14', end: '2026-04-18', color: 'bg-brand-100 text-brand-700' },
-  { id: '2', name: 'Juan dela Cruz', type: 'sick', start: '2026-04-09', end: '2026-04-09', color: 'bg-red-100 text-red-700' },
-  { id: '3', name: 'Ana Reyes', type: 'emergency', start: '2026-04-10', end: '2026-04-11', color: 'bg-amber-100 text-amber-700' },
-]
+import { leaveService } from '../../../services/leaveService'
+import type { LeaveApplication } from '../../../types'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function LeaveCalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1))
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [events, setEvents] = useState<LeaveApplication[]>([])
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setMessage(null)
+        const res = await leaveService.getCalendar(currentMonth.getMonth() + 1, currentMonth.getFullYear())
+        setEvents(res.data)
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Unable to load leave calendar.')
+      }
+    }
+
+    loadEvents()
+  }, [currentMonth])
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -30,10 +41,18 @@ export default function LeaveCalendarPage() {
     day = addDays(day, 1)
   }
 
-  const getEventsForDay = (date: Date) =>
-    mockLeaveEvents.filter((e) =>
-      isWithinInterval(date, { start: parseISO(e.start), end: parseISO(e.end) })
-    )
+  const eventColors: Record<string, string> = {
+    vacation: 'bg-brand-100 text-brand-700',
+    sick: 'bg-red-100 text-red-700',
+    emergency: 'bg-amber-100 text-amber-700',
+    maternity: 'bg-sky-100 text-sky-700',
+    paternity: 'bg-sky-100 text-sky-700',
+  }
+
+  const getEventsForDay = useMemo(() => (date: Date) =>
+    events.filter((e) =>
+      isWithinInterval(date, { start: parseISO(e.startDate), end: parseISO(e.endDate) })
+    ), [events])
 
   return (
     <div className="space-y-5">
@@ -41,6 +60,12 @@ export default function LeaveCalendarPage() {
         <h2 className="text-xl font-bold text-ink">Leave Calendar</h2>
         <p className="text-sm text-muted mt-0.5">Visual overview of all approved and pending leave schedules</p>
       </div>
+
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex gap-3 flex-wrap">
@@ -112,10 +137,10 @@ export default function LeaveCalendarPage() {
                   {events.slice(0, 2).map((e) => (
                     <div
                       key={e.id}
-                      className={`text-xs px-1.5 py-0.5 rounded truncate ${e.color}`}
-                      title={`${e.name} – ${e.type}`}
+                      className={`text-xs px-1.5 py-0.5 rounded truncate ${eventColors[e.leaveType] ?? 'bg-slate-100 text-slate-700'}`}
+                      title={`${e.employee ? `${e.employee.firstName} ${e.employee.lastName}` : 'Employee'} - ${e.leaveType} (${e.status})`}
                     >
-                      {e.name.split(' ')[0]}
+                      {e.employee?.firstName ?? 'Leave'}
                     </div>
                   ))}
                   {events.length > 2 && (

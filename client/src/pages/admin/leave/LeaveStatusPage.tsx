@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle, XCircle, Search } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -7,30 +7,7 @@ import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
 import { formatDate } from '../../../utils/dateHelpers'
 import type { LeaveApplication } from '../../../types'
-
-const mockLeaves: LeaveApplication[] = [
-  {
-    id: '1', employeeId: '1', leaveType: 'vacation', startDate: '2026-04-14', endDate: '2026-04-18',
-    totalDays: 5, reason: 'Family vacation in Boracay', status: 'pending',
-    createdAt: '2026-04-06', updatedAt: '2026-04-06',
-  },
-  {
-    id: '2', employeeId: '2', leaveType: 'sick', startDate: '2026-04-09', endDate: '2026-04-09',
-    totalDays: 1, reason: 'Flu', status: 'approved', approvedAt: '2026-04-08',
-    createdAt: '2026-04-08', updatedAt: '2026-04-08',
-  },
-  {
-    id: '3', employeeId: '3', leaveType: 'emergency', startDate: '2026-04-10', endDate: '2026-04-11',
-    totalDays: 2, reason: 'Family emergency', status: 'pending',
-    createdAt: '2026-04-09', updatedAt: '2026-04-09',
-  },
-]
-
-const employeeNames: Record<string, string> = {
-  '1': 'Maria Santos',
-  '2': 'Juan dela Cruz',
-  '3': 'Ana Reyes',
-}
+import { leaveService } from '../../../services/leaveService'
 
 const leaveTypeLabel: Record<string, string> = {
   vacation: 'Vacation Leave',
@@ -51,12 +28,49 @@ export default function LeaveStatusPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [tab, setTab] = useState<'all' | 'pending'>('pending')
+  const [leaves, setLeaves] = useState<LeaveApplication[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
 
-  const filtered = mockLeaves.filter((l) => {
+  const loadLeaves = async () => {
+    try {
+      setIsLoading(true)
+      setMessage(null)
+      const res = await leaveService.list(tab === 'pending' ? { status: 'pending' } : undefined)
+      setLeaves(res.data)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to load leave requests.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadLeaves()
+  }, [tab])
+
+  const filtered = useMemo(() => leaves.filter((l) => {
     if (tab === 'pending' && l.status !== 'pending') return false
-    const name = employeeNames[l.employeeId]?.toLowerCase() ?? ''
+    const name = l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.toLowerCase() : ''
     return name.includes(search.toLowerCase())
-  })
+  }), [leaves, search, tab])
+
+  const visibleLeaves = filtered.slice((page - 1) * 10, page * 10)
+
+  const reviewLeave = async (id: string, action: 'approve' | 'reject') => {
+    try {
+      setMessage(null)
+      if (action === 'approve') {
+        await leaveService.approve(id)
+      } else {
+        await leaveService.reject(id, 'Rejected by reviewer')
+      }
+      await loadLeaves()
+      setMessage(`Leave request ${action === 'approve' ? 'approved' : 'rejected'}.`)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to review leave request.')
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -66,6 +80,12 @@ export default function LeaveStatusPage() {
           <p className="text-sm text-muted mt-0.5">Review and manage leave applications</p>
         </div>
       </div>
+
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
@@ -98,8 +118,9 @@ export default function LeaveStatusPage() {
         </div>
 
         <Table
-          data={filtered}
+          data={visibleLeaves}
           rowKey={(r) => r.id}
+          isLoading={isLoading}
           emptyMessage="No leave requests found."
           columns={[
             {
@@ -107,8 +128,10 @@ export default function LeaveStatusPage() {
               header: 'Employee',
               render: (row) => (
                 <div className="flex items-center gap-3">
-                  <Avatar name={employeeNames[row.employeeId]} size="sm" />
-                  <span className="text-sm font-medium">{employeeNames[row.employeeId]}</span>
+                  <Avatar name={row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : 'Employee'} size="sm" />
+                  <span className="text-sm font-medium">
+                    {row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : row.employeeId}
+                  </span>
                 </div>
               ),
             },
@@ -147,14 +170,14 @@ export default function LeaveStatusPage() {
               render: (row) =>
                 row.status === 'pending' ? (
                   <div className="flex gap-2">
-                    <Button size="xs" leftIcon={<CheckCircle size={12} />}>Approve</Button>
-                    <Button size="xs" variant="danger" leftIcon={<XCircle size={12} />}>Reject</Button>
+                    <Button size="xs" leftIcon={<CheckCircle size={12} />} onClick={() => reviewLeave(row.id, 'approve')}>Approve</Button>
+                    <Button size="xs" variant="danger" leftIcon={<XCircle size={12} />} onClick={() => reviewLeave(row.id, 'reject')}>Reject</Button>
                   </div>
                 ) : null,
             },
           ]}
         />
-        <Pagination page={page} totalPages={1} total={filtered.length} limit={10} onPageChange={setPage} />
+        <Pagination page={page} totalPages={Math.max(1, Math.ceil(filtered.length / 10))} total={filtered.length} limit={10} onPageChange={setPage} />
       </Card>
     </div>
   )

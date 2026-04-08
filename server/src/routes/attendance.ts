@@ -7,6 +7,7 @@ import {
   createAttendanceRecord,
   getAttendanceSummary,
   getAttendanceRequests,
+  createAttendanceRequest,
   approveAttendanceRequest,
 } from '../controllers/attendanceController'
 import { authenticate, requireRole } from '../middleware/auth'
@@ -19,6 +20,7 @@ router.use(authenticate)
 router.get('/my-logs', getMyAttendance)
 router.post('/clock-in', clockIn)
 router.post('/clock-out', clockOut)
+router.post('/requests', createAttendanceRequest)
 
 // Admin
 router.get('/', requireRole('admin', 'hr_admin', 'finance_admin'), getAttendanceLogs)
