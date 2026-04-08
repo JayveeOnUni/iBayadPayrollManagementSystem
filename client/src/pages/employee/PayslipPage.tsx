@@ -1,30 +1,53 @@
-import { useState } from 'react'
-import { Download, FileText, ChevronDown } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download, FileText } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import { formatDate } from '../../utils/dateHelpers'
 import { formatPeso } from '../../utils/taxComputation'
-
-interface PayslipSummary {
-  id: string
-  period: string
-  payDate: string
-  grossPay: number
-  netPay: number
-  deductions: number
-  status: 'paid' | 'pending'
-}
-
-const mockPayslips: PayslipSummary[] = [
-  { id: '1', period: 'April 2026 – 1st Period', payDate: '2026-04-20', grossPay: 22500, netPay: 19842.50, deductions: 2657.50, status: 'paid' },
-  { id: '2', period: 'March 2026 – 2nd Period', payDate: '2026-04-05', grossPay: 22500, netPay: 19842.50, deductions: 2657.50, status: 'paid' },
-  { id: '3', period: 'March 2026 – 1st Period', payDate: '2026-03-20', grossPay: 22500, netPay: 19842.50, deductions: 2657.50, status: 'paid' },
-  { id: '4', period: 'February 2026 – 2nd Period', payDate: '2026-03-05', grossPay: 22500, netPay: 19842.50, deductions: 2657.50, status: 'paid' },
-]
+import { payrollService } from '../../services/payrollService'
+import type { PayrollRecord } from '../../types'
 
 export default function PayslipPage() {
-  const [selectedPayslip, setSelectedPayslip] = useState<PayslipSummary | null>(mockPayslips[0])
+  const [payslips, setPayslips] = useState<PayrollRecord[]>([])
+  const [selectedPayslip, setSelectedPayslip] = useState<PayrollRecord | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadPayslips = async () => {
+      try {
+        setIsLoading(true)
+        setMessage(null)
+        const res = await payrollService.getMyPayslips()
+        setPayslips(res.data)
+        setSelectedPayslip(res.data[0] ?? null)
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Unable to load payslips.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadPayslips()
+  }, [])
+
+  const downloadPayslip = async () => {
+    if (!selectedPayslip) return
+    try {
+      const res = await payrollService.generatePayslip(selectedPayslip.id)
+      if (!res.ok) throw new Error('Unable to download payslip.')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `payslip-${selectedPayslip.id}.txt`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to download payslip.')
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -33,10 +56,18 @@ export default function PayslipPage() {
         <p className="text-sm text-muted mt-0.5">View and download your payslip history</p>
       </div>
 
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* List */}
         <div className="space-y-2">
-          {mockPayslips.map((p) => (
+          {isLoading && <div className="text-sm text-muted bg-white border border-border rounded-lg px-4 py-3">Loading payslips...</div>}
+          {!isLoading && payslips.length === 0 && <div className="text-sm text-muted bg-white border border-border rounded-lg px-4 py-3">No payslips available yet.</div>}
+          {payslips.map((p) => (
             <button
               key={p.id}
               onClick={() => setSelectedPayslip(p)}
@@ -51,10 +82,10 @@ export default function PayslipPage() {
                 <p className={`text-sm font-medium ${selectedPayslip?.id === p.id ? 'text-brand' : 'text-ink'}`}>
                   {formatPeso(p.netPay)}
                 </p>
-                <Badge variant="success" size="sm">Paid</Badge>
+                <Badge variant={p.status === 'paid' ? 'success' : 'warning'} size="sm">{p.status}</Badge>
               </div>
-              <p className="text-xs text-muted">{p.period}</p>
-              <p className="text-xs text-muted">Pay date: {formatDate(p.payDate)}</p>
+              <p className="text-xs text-muted">{p.payrollPeriod?.name ?? 'Payroll period'}</p>
+              <p className="text-xs text-muted">Pay date: {formatDate(p.payrollPeriod?.payDate ?? p.processedAt ?? p.createdAt)}</p>
             </button>
           ))}
         </div>
@@ -67,11 +98,11 @@ export default function PayslipPage() {
                 <div className="flex items-center gap-2.5">
                   <FileText size={18} className="text-muted" />
                   <div>
-                    <h3 className="text-sm font-semibold text-ink">Payslip — {selectedPayslip.period}</h3>
-                    <p className="text-xs text-muted">Pay Date: {formatDate(selectedPayslip.payDate)}</p>
+                    <h3 className="text-sm font-semibold text-ink">Payslip - {selectedPayslip.payrollPeriod?.name ?? 'Payroll period'}</h3>
+                    <p className="text-xs text-muted">Pay Date: {formatDate(selectedPayslip.payrollPeriod?.payDate ?? selectedPayslip.createdAt)}</p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" leftIcon={<Download size={14} />}>
+                <Button size="sm" variant="outline" leftIcon={<Download size={14} />} onClick={downloadPayslip}>
                   Download PDF
                 </Button>
               </div>
@@ -81,11 +112,11 @@ export default function PayslipPage() {
                 <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Earnings</p>
                 <div className="space-y-2">
                   {[
-                    { label: 'Basic Pay', value: 22500 },
-                    { label: 'Overtime Pay', value: 0 },
-                    { label: 'Holiday Pay', value: 0 },
-                    { label: 'Night Differential', value: 0 },
-                    { label: 'Allowances', value: 0 },
+                    { label: 'Basic Pay', value: selectedPayslip.basicPay },
+                    { label: 'Overtime Pay', value: selectedPayslip.overtimePay },
+                    { label: 'Holiday Pay', value: selectedPayslip.holidayPay },
+                    { label: 'Night Differential', value: selectedPayslip.nightDifferential },
+                    { label: 'Allowances', value: selectedPayslip.allowances },
                   ].map((row) => (
                     <div key={row.label} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
                       <span className="text-muted">{row.label}</span>
@@ -104,11 +135,11 @@ export default function PayslipPage() {
                 <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Deductions</p>
                 <div className="space-y-2">
                   {[
-                    { label: 'SSS Employee Share', value: 900 },
-                    { label: 'PhilHealth Employee Share', value: 562.50 },
-                    { label: 'Pag-IBIG Employee Share', value: 100 },
-                    { label: 'Withholding Tax', value: 1095 },
-                    { label: 'Late/Absence Deductions', value: 0 },
+                    { label: 'SSS Employee Share', value: selectedPayslip.contributions.sss },
+                    { label: 'PhilHealth Employee Share', value: selectedPayslip.contributions.philhealth },
+                    { label: 'Pag-IBIG Employee Share', value: selectedPayslip.contributions.pagibig },
+                    { label: 'Withholding Tax', value: selectedPayslip.withholdingTax },
+                    { label: 'Late/Absence Deductions', value: selectedPayslip.lateDeduction + selectedPayslip.absenceDeduction },
                   ].map((row) => (
                     <div key={row.label} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
                       <span className="text-muted">{row.label}</span>
@@ -117,7 +148,7 @@ export default function PayslipPage() {
                   ))}
                   <div className="flex justify-between text-sm font-semibold pt-2">
                     <span className="text-ink">Total Deductions</span>
-                    <span className="text-red-600">-{formatPeso(selectedPayslip.deductions)}</span>
+                    <span className="text-red-600">-{formatPeso(selectedPayslip.totalDeductions)}</span>
                   </div>
                 </div>
               </div>

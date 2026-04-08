@@ -1,13 +1,17 @@
 import { useForm } from 'react-hook-form'
+import { useState } from 'react'
 import { User, Lock, CreditCard, Save } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Avatar from '../../components/ui/Avatar'
 import { useAuthStore } from '../../store/authStore'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function ProfilePage() {
   const { user } = useAuthStore()
+  const { changePassword, error } = useAuth()
+  const [message, setMessage] = useState<string | null>(null)
   const fullName = user ? `${user.firstName} ${user.lastName}` : ''
 
   const { register: registerPersonal, handleSubmit: handlePersonal } = useForm({
@@ -26,19 +30,27 @@ export default function ProfilePage() {
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   })
 
-  const onSavePersonal = (data: unknown) => {
-    console.log('Saving profile:', data)
-    alert('Profile update request submitted. HR will review changes.')
+  const onSavePersonal = (data: Record<string, string>) => {
+    const body = encodeURIComponent(
+      `Profile update request for ${fullName}\n\n` +
+      Object.entries(data).map(([key, value]) => `${key}: ${value}`).join('\n')
+    )
+    window.location.href = `mailto:hr@ibayad.com?subject=Profile%20Update%20Request&body=${body}`
+    setMessage('Profile update request prepared for HR review.')
   }
 
-  const onChangePassword = (data: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
+  const onChangePassword = async (data: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
     if (data.newPassword !== data.confirmPassword) {
-      alert('Passwords do not match.')
+      setMessage('Passwords do not match.')
       return
     }
-    console.log('Changing password')
-    alert('Password changed successfully.')
-    resetPassword()
+    const ok = await changePassword(data.currentPassword, data.newPassword)
+    if (ok) {
+      setMessage('Password changed successfully.')
+      resetPassword()
+    } else {
+      setMessage(error ?? 'Failed to change password.')
+    }
   }
 
   return (
@@ -47,6 +59,12 @@ export default function ProfilePage() {
         <h2 className="text-xl font-bold text-ink">My Profile</h2>
         <p className="text-sm text-muted mt-0.5">View and request updates to your personal information</p>
       </div>
+
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
 
       {/* Profile header */}
       <Card>

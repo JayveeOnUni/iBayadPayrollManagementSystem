@@ -34,7 +34,36 @@ const modulePermissions = [
 ]
 
 export default function RolesPage() {
+  const [roles, setRoles] = useState<Role[]>(mockRoles)
   const [selectedRole, setSelectedRole] = useState<Role>(mockRoles[0])
+
+  const addRole = () => {
+    const role: Role = {
+      id: crypto.randomUUID(),
+      name: `Custom Role ${roles.filter((item) => !item.isSystem).length + 1}`,
+      description: 'Custom role for local review',
+      permissions: [],
+      isSystem: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    setRoles((current) => [...current, role])
+    setSelectedRole(role)
+  }
+
+  const renameSelectedRole = () => {
+    if (selectedRole.isSystem) return
+    const updated = { ...selectedRole, name: `${selectedRole.name} (Edited)`, updatedAt: new Date().toISOString() }
+    setRoles((current) => current.map((role) => role.id === updated.id ? updated : role))
+    setSelectedRole(updated)
+  }
+
+  const deleteSelectedRole = () => {
+    if (selectedRole.isSystem) return
+    const next = roles.filter((role) => role.id !== selectedRole.id)
+    setRoles(next)
+    setSelectedRole(next[0] ?? mockRoles[0])
+  }
 
   return (
     <div className="space-y-5">
@@ -43,13 +72,13 @@ export default function RolesPage() {
           <h2 className="text-xl font-bold text-ink">Roles & Permissions</h2>
           <p className="text-sm text-muted mt-0.5">Define access levels for each user role</p>
         </div>
-        <Button size="sm" leftIcon={<Plus size={14} />}>Add Role</Button>
+        <Button size="sm" leftIcon={<Plus size={14} />} onClick={addRole}>Add Role</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Role list */}
         <div className="space-y-2">
-          {mockRoles.map((role) => (
+          {roles.map((role) => (
             <button
               key={role.id}
               onClick={() => setSelectedRole(role)}
@@ -85,8 +114,8 @@ export default function RolesPage() {
               </div>
               {!selectedRole.isSystem && (
                 <div className="flex gap-2">
-                  <Button size="xs" variant="outline" leftIcon={<Edit2 size={12} />}>Edit</Button>
-                  <Button size="xs" variant="danger" leftIcon={<Trash2 size={12} />}>Delete</Button>
+                  <Button size="xs" variant="outline" leftIcon={<Edit2 size={12} />} onClick={renameSelectedRole}>Edit</Button>
+                  <Button size="xs" variant="danger" leftIcon={<Trash2 size={12} />} onClick={deleteSelectedRole}>Delete</Button>
                 </div>
               )}
             </div>

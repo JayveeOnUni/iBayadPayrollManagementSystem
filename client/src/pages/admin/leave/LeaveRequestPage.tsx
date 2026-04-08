@@ -1,13 +1,17 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useEffect, useState } from 'react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
+import { employeeService } from '../../../services/employeeService'
+import { leaveService } from '../../../services/leaveService'
+import type { Employee } from '../../../types'
 
 const leaveRequestSchema = z.object({
   employeeId: z.string().min(1, 'Employee is required'),
-  leaveType: z.enum(['vacation', 'sick', 'emergency', 'maternity', 'paternity', 'bereavement', 'others']),
+  leaveTypeId: z.string().min(1, 'Leave type is required'),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
   reason: z.string().min(5, 'Please provide a reason (at least 5 characters)'),
@@ -19,11 +23,40 @@ export default function LeaveRequestPage() {
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
     resolver: zodResolver(leaveRequestSchema),
   })
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [leaveTypes, setLeaveTypes] = useState<Array<{ id: string; name: string; code: string }>>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
 
-  const onSubmit = (data: FormValues) => {
-    console.log('Leave request:', data)
-    alert('Leave request submitted successfully.')
-    reset()
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [employeeRes, typeRes] = await Promise.all([
+          employeeService.list({ limit: 100, status: 'active' }),
+          leaveService.getTypes(),
+        ])
+        setEmployees(employeeRes.data)
+        setLeaveTypes(typeRes.data)
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Unable to load leave request options.')
+      }
+    }
+
+    loadOptions()
+  }, [])
+
+  const onSubmit = async (data: FormValues) => {
+    try {
+      setIsSubmitting(true)
+      setMessage(null)
+      await leaveService.apply(data)
+      setMessage('Leave request submitted successfully.')
+      reset()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to submit leave request.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -32,6 +65,12 @@ export default function LeaveRequestPage() {
         <h2 className="text-xl font-bold text-ink">Submit Leave Request</h2>
         <p className="text-sm text-muted mt-0.5">File a leave request on behalf of an employee or yourself</p>
       </div>
+
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
 
       <div className="max-w-2xl">
         <Card>
@@ -46,9 +85,11 @@ export default function LeaveRequestPage() {
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white"
               >
                 <option value="">Select employee...</option>
-                <option value="1">Maria Santos (EMP-001)</option>
-                <option value="2">Juan dela Cruz (EMP-002)</option>
-                <option value="3">Ana Reyes (EMP-003)</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.firstName} {employee.lastName} ({employee.employeeNumber})
+                  </option>
+                ))}
               </select>
               {errors.employeeId && <p className="text-xs text-red-600">{errors.employeeId.message}</p>}
             </div>
@@ -59,19 +100,17 @@ export default function LeaveRequestPage() {
                 Leave Type <span className="text-red-500">*</span>
               </label>
               <select
-                {...register('leaveType')}
+                {...register('leaveTypeId')}
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white"
               >
                 <option value="">Select leave type...</option>
-                <option value="vacation">Vacation Leave</option>
-                <option value="sick">Sick Leave</option>
-                <option value="emergency">Emergency Leave</option>
-                <option value="maternity">Maternity Leave</option>
-                <option value="paternity">Paternity Leave</option>
-                <option value="bereavement">Bereavement Leave</option>
-                <option value="others">Others</option>
+                {leaveTypes.map((leaveType) => (
+                  <option key={leaveType.id} value={leaveType.id}>
+                    {leaveType.name}
+                  </option>
+                ))}
               </select>
-              {errors.leaveType && <p className="text-xs text-red-600">{errors.leaveType.message}</p>}
+              {errors.leaveTypeId && <p className="text-xs text-red-600">{errors.leaveTypeId.message}</p>}
             </div>
 
             {/* Date range */}
@@ -111,8 +150,8 @@ export default function LeaveRequestPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" size="md">Submit Request</Button>
-              <Button type="button" variant="outline" onClick={() => reset()}>Reset</Button>
+              <Button type="submit" size="md" isLoading={isSubmitting}>Submit Request</Button>
+              <Button type="button" variant="outline" onClick={() => reset()} disabled={isSubmitting}>Reset</Button>
             </div>
           </form>
         </Card>

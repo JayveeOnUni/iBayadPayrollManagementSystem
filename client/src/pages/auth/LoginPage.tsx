@@ -4,7 +4,6 @@ import { z } from 'zod'
 import { Eye, EyeOff, CreditCard, Lock, Mail } from 'lucide-react'
 import { useState } from 'react'
 import Button from '../../components/ui/Button'
-import Input from '../../components/ui/Input'
 import { useAuth } from '../../hooks/useAuth'
 import type { LoginCredentials } from '../../types'
 
@@ -110,7 +109,7 @@ export default function LoginPage() {
                     Password <span className="text-red-500">*</span>
                   </label>
                   <a
-                    href="#"
+                    href="mailto:support@ibayad.com?subject=Password%20Reset%20Request"
                     className="text-xs text-brand hover:text-brand-700 font-medium transition-colors"
                   >
                     Forgot password?

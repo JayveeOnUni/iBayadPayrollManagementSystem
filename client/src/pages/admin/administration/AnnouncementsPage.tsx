@@ -35,6 +35,54 @@ const priorityVariant: Record<string, 'danger' | 'warning' | 'info' | 'neutral'>
 
 export default function AnnouncementsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements)
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
+  const [form, setForm] = useState({
+    title: '',
+    content: '',
+    priority: 'normal' as Announcement['priority'],
+    targetAudience: 'all' as Announcement['targetAudience'],
+    expiresAt: '',
+  })
+
+  const openAnnouncementModal = (announcement?: Announcement) => {
+    setEditingAnnouncement(announcement ?? null)
+    setForm({
+      title: announcement?.title ?? '',
+      content: announcement?.content ?? '',
+      priority: announcement?.priority ?? 'normal',
+      targetAudience: announcement?.targetAudience ?? 'all',
+      expiresAt: announcement?.expiresAt ?? '',
+    })
+    setIsModalOpen(true)
+  }
+
+  const saveAnnouncement = (isPublished: boolean) => {
+    if (!form.title || !form.content) return
+    if (editingAnnouncement) {
+      setAnnouncements((current) =>
+        current.map((item) =>
+          item.id === editingAnnouncement.id
+            ? { ...item, ...form, isPublished, publishedAt: isPublished ? new Date().toISOString() : item.publishedAt, updatedAt: new Date().toISOString() }
+            : item
+        )
+      )
+    } else {
+      setAnnouncements((current) => [
+        {
+          id: crypto.randomUUID(),
+          ...form,
+          isPublished,
+          publishedAt: isPublished ? new Date().toISOString() : undefined,
+          createdBy: 'current-user',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        ...current,
+      ])
+    }
+    setIsModalOpen(false)
+  }
 
   return (
     <div className="space-y-5">
@@ -43,13 +91,13 @@ export default function AnnouncementsPage() {
           <h2 className="text-xl font-bold text-ink">Announcements</h2>
           <p className="text-sm text-muted mt-0.5">Broadcast messages to employees or admins</p>
         </div>
-        <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsModalOpen(true)}>
+        <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => openAnnouncementModal()}>
           New Announcement
         </Button>
       </div>
 
       <div className="space-y-4">
-        {mockAnnouncements.map((a) => (
+        {announcements.map((a) => (
           <Card key={a.id}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -75,8 +123,8 @@ export default function AnnouncementsPage() {
                 </div>
               </div>
               <div className="flex gap-1 flex-shrink-0">
-                <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />}>Edit</Button>
-                <Button size="xs" variant="ghost" leftIcon={<Trash2 size={12} />}>Delete</Button>
+                <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />} onClick={() => openAnnouncementModal(a)}>Edit</Button>
+                <Button size="xs" variant="ghost" leftIcon={<Trash2 size={12} />} onClick={() => setAnnouncements((current) => current.filter((item) => item.id !== a.id))}>Delete</Button>
               </div>
             </div>
           </Card>
@@ -87,21 +135,21 @@ export default function AnnouncementsPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="New Announcement"
+        title={editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
         size="lg"
         footer={
           <>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Save as Draft</Button>
-            <Button onClick={() => setIsModalOpen(false)}>Publish Now</Button>
+            <Button variant="outline" onClick={() => saveAnnouncement(false)}>Save as Draft</Button>
+            <Button onClick={() => saveAnnouncement(true)}>Publish Now</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Title" placeholder="Announcement title..." required />
+          <Input label="Title" placeholder="Announcement title..." required value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} />
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-ink">Priority</label>
-              <select className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white">
+              <select value={form.priority} onChange={(e) => setForm((current) => ({ ...current, priority: e.target.value as Announcement['priority'] }))} className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white">
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
                 <option value="high">High</option>
@@ -110,7 +158,7 @@ export default function AnnouncementsPage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-ink">Target Audience</label>
-              <select className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white">
+              <select value={form.targetAudience} onChange={(e) => setForm((current) => ({ ...current, targetAudience: e.target.value as Announcement['targetAudience'] }))} className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white">
                 <option value="all">All Users</option>
                 <option value="admin">Admin Only</option>
                 <option value="employee">Employees Only</option>
@@ -123,10 +171,12 @@ export default function AnnouncementsPage() {
             <textarea
               rows={5}
               placeholder="Write your announcement..."
+              value={form.content}
+              onChange={(e) => setForm((current) => ({ ...current, content: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none"
             />
           </div>
-          <Input label="Expiry Date (optional)" type="date" />
+          <Input label="Expiry Date (optional)" type="date" value={form.expiresAt} onChange={(e) => setForm((current) => ({ ...current, expiresAt: e.target.value }))} />
         </div>
       </Modal>
     </div>

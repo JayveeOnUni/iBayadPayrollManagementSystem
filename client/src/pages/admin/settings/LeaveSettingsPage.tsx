@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form'
+import { useState } from 'react'
 import { Save } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -17,6 +18,7 @@ interface LeaveSettingsForm {
 }
 
 export default function LeaveSettingsPage() {
+  const [message, setMessage] = useState<string | null>(null)
   const { register, handleSubmit } = useForm<LeaveSettingsForm>({
     defaultValues: {
       vacationLeaveCredits: 15,
@@ -32,8 +34,8 @@ export default function LeaveSettingsPage() {
   })
 
   const onSubmit = (data: LeaveSettingsForm) => {
-    console.log('Saving leave settings:', data)
-    alert('Leave settings saved.')
+    localStorage.setItem('ibayad-leave-settings', JSON.stringify(data))
+    setMessage('Leave settings saved for this workstation.')
   }
 
   const leaveTypes = [
@@ -51,6 +53,8 @@ export default function LeaveSettingsPage() {
         <h2 className="text-xl font-bold text-ink">Leave Settings</h2>
         <p className="text-sm text-muted mt-0.5">Configure leave types, credits, and conversion rules</p>
       </div>
+
+      {message && <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">{message}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Card>

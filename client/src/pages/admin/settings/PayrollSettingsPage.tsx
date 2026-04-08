@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form'
+import { useState } from 'react'
 import { Save, Info } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -22,7 +23,8 @@ interface PayrollSettingsForm {
 }
 
 export default function PayrollSettingsPage() {
-  const { register, handleSubmit, watch } = useForm<PayrollSettingsForm>({
+  const [message, setMessage] = useState<string | null>(null)
+  const { register, handleSubmit } = useForm<PayrollSettingsForm>({
     defaultValues: {
       payFrequency: 'semi_monthly',
       semiMonthlyCutoff1: 15,
@@ -42,8 +44,8 @@ export default function PayrollSettingsPage() {
   })
 
   const onSubmit = (data: PayrollSettingsForm) => {
-    console.log('Saving payroll settings:', data)
-    alert('Payroll settings saved.')
+    localStorage.setItem('ibayad-payroll-settings', JSON.stringify(data))
+    setMessage('Payroll settings saved for this workstation.')
   }
 
   return (
@@ -52,6 +54,8 @@ export default function PayrollSettingsPage() {
         <h2 className="text-xl font-bold text-ink">Payroll Settings</h2>
         <p className="text-sm text-muted mt-0.5">Configure pay frequency, work hours, overtime, and holiday rules</p>
       </div>
+
+      {message && <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">{message}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Pay Frequency */}

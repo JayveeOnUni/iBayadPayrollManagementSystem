@@ -42,8 +42,8 @@ export const createEmployee = asyncHandler(async (req: Request, res: Response) =
     bankName, bankAccountNumber, shiftId,
   } = req.body
 
-  if (!firstName || !lastName || !email || !departmentId || !basicSalary) {
-    throw createError('Required fields are missing', 400)
+  if (!firstName || !lastName || !email || !hireDate || !basicSalary) {
+    throw createError('firstName, lastName, email, hireDate, and basicSalary are required', 400)
   }
 
   const dailyRate = basicSalary / 22
@@ -86,7 +86,35 @@ export const updateEmployee = asyncHandler(async (req: Request, res: Response) =
   const existing = await EmployeeModel.findById(req.params.id)
   if (!existing) throw createError('Employee not found', 404)
 
-  const updated = await EmployeeModel.update(req.params.id, req.body)
+  const body = req.body
+  const data = {
+    first_name: body.firstName,
+    middle_name: body.middleName,
+    last_name: body.lastName,
+    email: body.email,
+    phone: body.phone,
+    birth_date: body.birthDate,
+    gender: body.gender,
+    civil_status: body.civilStatus,
+    address: body.address,
+    city: body.city,
+    province: body.province,
+    zip_code: body.zipCode,
+    department_id: body.departmentId,
+    position_id: body.positionId,
+    employment_type: body.employmentType,
+    hire_date: body.hireDate,
+    basic_salary: body.basicSalary,
+    sss_number: body.sssNumber,
+    philhealth_number: body.philhealthNumber,
+    pagibig_number: body.pagibigNumber,
+    tin_number: body.tinNumber,
+    bank_name: body.bankName,
+    bank_account_number: body.bankAccountNumber,
+    shift_id: body.shiftId,
+  }
+  const sanitized = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
+  const updated = await EmployeeModel.update(req.params.id, sanitized as never)
   res.json({ success: true, data: updated })
 })
 

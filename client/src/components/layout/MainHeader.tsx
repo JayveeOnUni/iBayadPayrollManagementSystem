@@ -1,11 +1,13 @@
 import { Bell, Globe, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function MainHeader() {
   const { user } = useAuthStore()
   const { logout } = useAuth()
+  const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const fullName = user ? `${user.firstName} ${user.lastName}` : ''
   const initials = fullName
@@ -28,13 +30,17 @@ export default function MainHeader() {
       {/* Right actions */}
       <div className="flex items-center gap-6">
         {/* Language */}
-        <button className="flex items-center gap-1.5 text-sm font-medium text-ink">
+        <button className="flex items-center gap-1.5 text-sm font-medium text-ink" title="English language selected">
           <Globe size={16} className="text-ink" />
           <span>EN</span>
         </button>
 
         {/* Notifications */}
-        <button className="text-ink hover:text-muted transition-colors">
+        <button
+          className="text-ink hover:text-muted transition-colors"
+          onClick={() => navigate(user?.role === 'employee' ? '/employee/dashboard' : '/admin/administration/announcements')}
+          title="Open announcements"
+        >
           <Bell size={16} />
         </button>
 
@@ -58,12 +64,15 @@ export default function MainHeader() {
                   <p className="text-sm font-medium text-ink truncate">{fullName}</p>
                   <p className="text-xs text-muted capitalize">{user?.role?.replace(/_/g, ' ')}</p>
                 </div>
-                <a
-                  href="/admin/settings/general"
-                  className="block px-4 py-2.5 text-sm text-ink hover:bg-surface transition-colors"
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false)
+                    navigate(user?.role === 'employee' ? '/employee/profile' : '/admin/settings/general')
+                  }}
+                  className="block w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-surface transition-colors"
                 >
-                  Settings
-                </a>
+                  {user?.role === 'employee' ? 'Profile' : 'Settings'}
+                </button>
                 <button
                   onClick={logout}
                   className="w-full text-left px-4 py-2.5 text-sm text-danger hover:bg-danger-surface transition-colors"

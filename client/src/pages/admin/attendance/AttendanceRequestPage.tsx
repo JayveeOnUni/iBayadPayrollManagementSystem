@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle, XCircle } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -7,33 +7,50 @@ import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
 import { formatDate } from '../../../utils/dateHelpers'
 import type { AttendanceRequest } from '../../../types'
-
-const mockRequests: AttendanceRequest[] = [
-  {
-    id: '1', employeeId: '2', date: '2026-04-07', type: 'correction',
-    requestedTimeIn: '08:00', requestedTimeOut: '17:00',
-    reason: 'Forgot to clock in. Was present at 8:00 AM per CCTV.',
-    status: 'pending', createdAt: '2026-04-07', updatedAt: '2026-04-07',
-  },
-  {
-    id: '2', employeeId: '1', date: '2026-04-05', type: 'overtime',
-    requestedTimeIn: '17:00', requestedTimeOut: '20:00',
-    reason: 'Worked overtime for project deadline.',
-    status: 'approved', reviewedAt: '2026-04-06', createdAt: '2026-04-05', updatedAt: '2026-04-06',
-  },
-]
-
-const employeeNames: Record<string, string> = {
-  '1': 'Maria Santos',
-  '2': 'Juan dela Cruz',
-}
+import { attendanceService } from '../../../services/attendanceService'
 
 export default function AttendanceRequestPage() {
   const [tab, setTab] = useState<'pending' | 'all'>('pending')
+  const [requests, setRequests] = useState<AttendanceRequest[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
 
-  const filtered = tab === 'pending'
-    ? mockRequests.filter((r) => r.status === 'pending')
-    : mockRequests
+  const loadRequests = async () => {
+    try {
+      setIsLoading(true)
+      setMessage(null)
+      const res = await attendanceService.listRequests(tab === 'pending' ? { status: 'pending' } : undefined)
+      setRequests(res.data)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to load attendance requests.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadRequests()
+  }, [tab])
+
+  const filtered = useMemo(
+    () => tab === 'pending' ? requests.filter((r) => r.status === 'pending') : requests,
+    [requests, tab]
+  )
+
+  const reviewRequest = async (id: string, action: 'approve' | 'reject') => {
+    try {
+      setMessage(null)
+      if (action === 'approve') {
+        await attendanceService.approveRequest(id)
+      } else {
+        await attendanceService.rejectRequest(id, 'Rejected by reviewer')
+      }
+      await loadRequests()
+      setMessage(`Attendance request ${action === 'approve' ? 'approved' : 'rejected'}.`)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to review request.')
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -58,17 +75,24 @@ export default function AttendanceRequestPage() {
             {t === 'pending' ? 'Pending' : 'All Requests'}
             {t === 'pending' && (
               <Badge variant="warning" className="ml-2">
-                {mockRequests.filter((r) => r.status === 'pending').length}
+                {requests.filter((r) => r.status === 'pending').length}
               </Badge>
             )}
           </button>
         ))}
       </div>
 
+      {message && (
+        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+          {message}
+        </div>
+      )}
+
       <Card padding="none">
         <Table
           data={filtered}
           rowKey={(r) => r.id}
+          isLoading={isLoading}
           emptyMessage="No attendance requests found."
           columns={[
             {
@@ -76,8 +100,10 @@ export default function AttendanceRequestPage() {
               header: 'Employee',
               render: (row) => (
                 <div className="flex items-center gap-3">
-                  <Avatar name={employeeNames[row.employeeId]} size="sm" />
-                  <span className="text-sm font-medium">{employeeNames[row.employeeId]}</span>
+                  <Avatar name={row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : 'Employee'} size="sm" />
+                  <span className="text-sm font-medium">
+                    {row.employee ? `${row.employee.firstName} ${row.employee.lastName}` : row.employeeId}
+                  </span>
                 </div>
               ),
             },
@@ -127,10 +153,10 @@ export default function AttendanceRequestPage() {
               render: (row) =>
                 row.status === 'pending' ? (
                   <div className="flex gap-2">
-                    <Button size="xs" leftIcon={<CheckCircle size={12} />}>
+                    <Button size="xs" leftIcon={<CheckCircle size={12} />} onClick={() => reviewRequest(row.id, 'approve')}>
                       Approve
                     </Button>
-                    <Button size="xs" variant="danger" leftIcon={<XCircle size={12} />}>
+                    <Button size="xs" variant="danger" leftIcon={<XCircle size={12} />} onClick={() => reviewRequest(row.id, 'reject')}>
                       Reject
                     </Button>
                   </div>

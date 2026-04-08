@@ -107,7 +107,7 @@ export class EmployeeModel {
        FROM employees e
        LEFT JOIN departments d ON e.department_id = d.id
        LEFT JOIN positions p ON e.position_id = p.id
-       LEFT JOIN shifts s ON e.shift_id = s.id
+       LEFT JOIN work_shifts s ON e.shift_id = s.id
        WHERE e.id = $1`,
       [id]
     )

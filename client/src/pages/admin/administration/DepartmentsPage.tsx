@@ -19,6 +19,44 @@ const employeeCount: Record<string, number> = { '1': 8, '2': 12, '3': 15, '4': 2
 
 export default function DepartmentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [departments, setDepartments] = useState<Department[]>(mockDepartments)
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
+  const [form, setForm] = useState({ name: '', code: '', description: '' })
+
+  const openDepartmentModal = (department?: Department) => {
+    setEditingDepartment(department ?? null)
+    setForm({
+      name: department?.name ?? '',
+      code: department?.code ?? '',
+      description: department?.description ?? '',
+    })
+    setIsModalOpen(true)
+  }
+
+  const saveDepartment = () => {
+    if (!form.name || !form.code) return
+    if (editingDepartment) {
+      setDepartments((current) =>
+        current.map((dept) =>
+          dept.id === editingDepartment.id ? { ...dept, ...form, updatedAt: new Date().toISOString() } : dept
+        )
+      )
+    } else {
+      setDepartments((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          name: form.name,
+          code: form.code,
+          description: form.description,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ])
+    }
+    setIsModalOpen(false)
+  }
 
   return (
     <div className="space-y-5">
@@ -27,13 +65,13 @@ export default function DepartmentsPage() {
           <h2 className="text-xl font-bold text-ink">Departments</h2>
           <p className="text-sm text-muted mt-0.5">Organize your company structure</p>
         </div>
-        <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsModalOpen(true)}>
+        <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => openDepartmentModal()}>
           Add Department
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {mockDepartments.map((dept) => (
+        {departments.map((dept) => (
           <Card key={dept.id} className="flex flex-col gap-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -59,8 +97,8 @@ export default function DepartmentsPage() {
                 <span className="font-semibold text-ink">{employeeCount[dept.id] ?? 0}</span> employees
               </span>
               <div className="flex gap-1">
-                <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />}>Edit</Button>
-                <Button size="xs" variant="ghost" leftIcon={<Trash2 size={12} />}>Delete</Button>
+                <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />} onClick={() => openDepartmentModal(dept)}>Edit</Button>
+                <Button size="xs" variant="ghost" leftIcon={<Trash2 size={12} />} onClick={() => setDepartments((current) => current.filter((item) => item.id !== dept.id))}>Delete</Button>
               </div>
             </div>
           </Card>
@@ -71,23 +109,25 @@ export default function DepartmentsPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Add Department"
+        title={editingDepartment ? 'Edit Department' : 'Add Department'}
         size="sm"
         footer={
           <>
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button onClick={() => setIsModalOpen(false)}>Save Department</Button>
+            <Button onClick={saveDepartment}>Save Department</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Department Name" placeholder="e.g. Human Resources" required />
-          <Input label="Department Code" placeholder="e.g. HR" required />
+          <Input label="Department Name" placeholder="e.g. Human Resources" required value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} />
+          <Input label="Department Code" placeholder="e.g. HR" required value={form.code} onChange={(e) => setForm((current) => ({ ...current, code: e.target.value }))} />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-ink">Description</label>
             <textarea
               rows={3}
               placeholder="Brief description..."
+              value={form.description}
+              onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none"
             />
           </div>

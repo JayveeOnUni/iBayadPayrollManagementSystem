@@ -65,10 +65,13 @@ export const getLeaveBalance = asyncHandler(async (req: Request, res: Response) 
 })
 
 export const createLeaveRequest = asyncHandler(async (req: Request, res: Response) => {
-  const { leaveTypeId, startDate, endDate, reason, isHalfDay } = req.body
+  const { employeeId: requestedEmployeeId, leaveTypeId, startDate, endDate, reason, isHalfDay } = req.body
   if (!leaveTypeId || !startDate || !endDate || !reason) {
     throw createError('leaveTypeId, startDate, endDate, and reason are required', 400)
   }
+  const canRequestForOthers = ['super_admin', 'admin', 'hr_admin'].includes(req.user!.role)
+  const employeeId = canRequestForOthers && requestedEmployeeId ? requestedEmployeeId : req.user!.employeeId
+  if (!employeeId) throw createError('No employee profile is linked to this user', 400)
 
   // Compute total days (simplified — excludes weekends)
   const start = new Date(startDate)
@@ -91,7 +94,7 @@ export const createLeaveRequest = asyncHandler(async (req: Request, res: Respons
                    AND status = 'approved'
                    AND EXTRACT(YEAR FROM start_date) = $3), 0) AS remaining
      FROM leave_types lt WHERE lt.id = $2`,
-    [req.user!.employeeId, leaveTypeId, year]
+    [employeeId, leaveTypeId, year]
   )
 
   if (!balance.rows[0] || Number(balance.rows[0].remaining) < totalDays) {
@@ -101,7 +104,7 @@ export const createLeaveRequest = asyncHandler(async (req: Request, res: Respons
   const result = await pool.query(
     `INSERT INTO leave_requests (employee_id, leave_type_id, start_date, end_date, total_days, reason, is_half_day, status)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending') RETURNING *`,
-    [req.user!.employeeId, leaveTypeId, startDate, endDate, totalDays, reason, isHalfDay ?? false]
+    [employeeId, leaveTypeId, startDate, endDate, totalDays, reason, isHalfDay ?? false]
   )
   res.status(201).json({ success: true, data: result.rows[0] })
 })
@@ -135,7 +138,7 @@ export const cancelLeaveRequest = asyncHandler(async (req: Request, res: Respons
 
 export const getLeaveCalendar = asyncHandler(async (req: Request, res: Response) => {
   const { year, month } = req.query
-  const conditions = [`lr.status = 'approved'`]
+  const conditions = [`lr.status IN ('pending', 'approved')`]
   const params: unknown[] = []
   let i = 1
 
