@@ -76,7 +76,7 @@ export function computePayroll(input: PayrollComputationInput): PayrollComputati
     otherEarnings = 0,
   } = input
 
-  const isSemiMonthly = period.frequency === 'semi_monthly'
+  const isSemiMonthly = period.frequency === 'semi-monthly'
   const divisor = isSemiMonthly ? 2 : 1
 
   // Daily and hourly rates

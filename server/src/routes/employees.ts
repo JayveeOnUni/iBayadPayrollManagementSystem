@@ -7,7 +7,8 @@ import {
   deactivateEmployee,
   activateEmployee,
 } from '../controllers/employeeController'
-import { authenticate, requireRole } from '../middleware/auth'
+import { getEmployeeDashboard } from '../controllers/employeeDashboardController'
+import { authenticate, employeeSelfService, requireRole } from '../middleware/auth'
 import { asyncHandler, createError } from '../middleware/errorHandler'
 import pool from '../utils/db'
 
@@ -16,7 +17,7 @@ const router = Router()
 router.use(authenticate)
 
 // Employee self-service: my profile
-router.get('/me', asyncHandler(async (req, res) => {
+router.get('/me', employeeSelfService, asyncHandler(async (req, res) => {
   const result = await pool.query(
     `SELECT e.*, d.name AS department_name, p.title AS position_title
      FROM employees e
@@ -28,6 +29,8 @@ router.get('/me', asyncHandler(async (req, res) => {
   if (!result.rows[0]) throw createError('Profile not found', 404)
   res.json({ success: true, data: result.rows[0] })
 }))
+
+router.get('/dashboard', employeeSelfService, getEmployeeDashboard)
 
 // Admin routes
 router.get('/', requireRole('admin', 'hr_admin', 'finance_admin'), listEmployees)

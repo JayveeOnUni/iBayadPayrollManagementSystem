@@ -12,7 +12,7 @@ import type { PayrollPeriod } from '../../../types'
 import { payrollService } from '../../../services/payrollService'
 
 const statusVariant: Record<string, 'success' | 'info' | 'neutral' | 'warning'> = {
-  paid: 'success',
+  released: 'success',
   approved: 'success',
   processing: 'info',
   draft: 'neutral',
@@ -57,7 +57,7 @@ export default function PayrollPage() {
     try {
       setIsSaving(true)
       setMessage(null)
-      await payrollService.createPeriod({ ...form, frequency: 'semi_monthly' })
+      await payrollService.createPeriod({ ...form, frequency: 'semi-monthly' })
       setIsNewOpen(false)
       setForm({ name: '', startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10), payDate: new Date().toISOString().slice(0, 10) })
       await loadPeriods()
@@ -160,7 +160,7 @@ export default function PayrollPage() {
               key: 'frequency',
               header: 'Frequency',
               render: (row) => (
-                <span className="capitalize text-sm">{row.frequency.replace('_', '-')}</span>
+                <span className="capitalize text-sm">{row.frequency}</span>
               ),
             },
             {
@@ -206,7 +206,7 @@ export default function PayrollPage() {
                       Mark Released
                     </Button>
                   )}
-                  {row.status === 'paid' && (
+                  {row.status === 'released' && (
                     <Button size="xs" variant="ghost">
                       View
                     </Button>

@@ -2,6 +2,46 @@ import { Request, Response } from 'express'
 import pool from '../utils/db'
 import { asyncHandler, createError } from '../middleware/errorHandler'
 
+interface ShiftSchedule {
+  start_time: string
+  end_time: string
+  break_minutes: number
+  work_hours: string | number
+}
+
+function localDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function scheduledTime(date: Date, time: string): Date {
+  const [hours, minutes, seconds = '0'] = time.split(':')
+  const scheduled = new Date(date)
+  scheduled.setHours(Number(hours), Number(minutes), Number(seconds), 0)
+  return scheduled
+}
+
+async function getEmployeeShift(employeeId: string): Promise<ShiftSchedule> {
+  const result = await pool.query(
+    `SELECT ws.start_time, ws.end_time, ws.break_minutes, ws.work_hours
+     FROM employees e
+     LEFT JOIN work_shifts ws ON ws.id = e.shift_id AND ws.is_active = true
+     WHERE e.id = $1`,
+    [employeeId]
+  )
+
+  if (!result.rows[0]) throw createError('Employee profile not found', 404)
+
+  return {
+    start_time: result.rows[0].start_time ?? '08:00:00',
+    end_time: result.rows[0].end_time ?? '17:00:00',
+    break_minutes: Number(result.rows[0].break_minutes ?? 60),
+    work_hours: result.rows[0].work_hours ?? 8,
+  }
+}
+
 export const getAttendanceLogs = asyncHandler(async (req: Request, res: Response) => {
   const { employeeId, startDate, endDate, status } = req.query
   const conditions: string[] = []
@@ -43,8 +83,8 @@ export const getMyAttendance = asyncHandler(async (req: Request, res: Response) 
 })
 
 export const clockIn = asyncHandler(async (req: Request, res: Response) => {
-  const today = new Date().toISOString().split('T')[0]
   const now = new Date()
+  const today = localDateString(now)
 
   // Check if already clocked in today
   const existing = await pool.query(
@@ -56,9 +96,8 @@ export const clockIn = asyncHandler(async (req: Request, res: Response) => {
     throw createError('Already clocked in today', 400)
   }
 
-  // Compute schedule start (default 8 AM) — in production, fetch from employee shift
-  const scheduleStart = new Date(now)
-  scheduleStart.setHours(8, 0, 0, 0)
+  const shift = await getEmployeeShift(req.user!.employeeId!)
+  const scheduleStart = scheduledTime(now, shift.start_time)
   const lateMins = now > scheduleStart ? Math.floor((now.getTime() - scheduleStart.getTime()) / 60000) : 0
 
   const result = await pool.query(
@@ -72,8 +111,8 @@ export const clockIn = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const clockOut = asyncHandler(async (req: Request, res: Response) => {
-  const today = new Date().toISOString().split('T')[0]
   const now = new Date()
+  const today = localDateString(now)
 
   const existing = await pool.query(
     `SELECT * FROM attendance WHERE employee_id = $1 AND date = $2`,
@@ -84,10 +123,13 @@ export const clockOut = asyncHandler(async (req: Request, res: Response) => {
   if (existing.rows[0].time_out) throw createError('Already clocked out today', 400)
 
   const timeIn = new Date(existing.rows[0].time_in)
-  const scheduleEnd = new Date(now)
-  scheduleEnd.setHours(17, 0, 0, 0) // 5 PM default
+  const shift = await getEmployeeShift(req.user!.employeeId!)
+  const scheduleStart = scheduledTime(now, shift.start_time)
+  const scheduleEnd = scheduledTime(now, shift.end_time)
+  if (scheduleEnd <= scheduleStart) scheduleEnd.setDate(scheduleEnd.getDate() + 1)
 
-  const totalWorkedMins = Math.floor((now.getTime() - timeIn.getTime()) / 60000)
+  const elapsedMins = Math.floor((now.getTime() - timeIn.getTime()) / 60000)
+  const totalWorkedMins = Math.max(0, elapsedMins - shift.break_minutes)
   const overtimeHours = now > scheduleEnd ? (now.getTime() - scheduleEnd.getTime()) / 3600000 : 0
 
   const result = await pool.query(

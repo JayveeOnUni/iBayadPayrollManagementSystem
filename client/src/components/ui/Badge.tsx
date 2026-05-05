@@ -68,7 +68,7 @@ export function statusBadge(status: string): React.ReactElement {
   const map: Record<string, BadgeVariant> = {
     active: 'success',
     approved: 'success',
-    paid: 'success',
+    released: 'success',
     present: 'success',
     inactive: 'neutral',
     pending: 'warning',

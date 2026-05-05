@@ -9,7 +9,7 @@ import {
   cancelLeaveRequest,
   getLeaveCalendar,
 } from '../controllers/leaveController'
-import { authenticate, requireRole } from '../middleware/auth'
+import { authenticate, employeeSelfService, requireRole } from '../middleware/auth'
 
 const router = Router()
 
@@ -20,10 +20,10 @@ router.get('/types', getLeaveTypes)
 router.get('/calendar', getLeaveCalendar)
 
 // Employee self-service
-router.get('/my-requests', getMyLeaveRequests)
+router.get('/my-requests', employeeSelfService, getMyLeaveRequests)
 router.get('/balance/:employeeId?', getLeaveBalance)
 router.post('/requests', createLeaveRequest)
-router.put('/requests/:id/cancel', cancelLeaveRequest)
+router.put('/requests/:id/cancel', employeeSelfService, cancelLeaveRequest)
 
 // Admin/HR
 router.get('/requests', requireRole('admin', 'hr_admin'), getLeaveRequests)

@@ -11,14 +11,14 @@ import {
   downloadPayslip,
   computeEmployeeTax,
 } from '../controllers/payrollController'
-import { authenticate, requireRole } from '../middleware/auth'
+import { authenticate, employeeSelfService, requireRole } from '../middleware/auth'
 
 const router = Router()
 
 router.use(authenticate)
 
 // Employee
-router.get('/my-records', getMyPayrollRecords)
+router.get('/my-records', employeeSelfService, getMyPayrollRecords)
 router.get('/compute-tax', computeEmployeeTax)
 
 // Admin/Finance

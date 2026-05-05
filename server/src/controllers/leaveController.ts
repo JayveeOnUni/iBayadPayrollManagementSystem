@@ -45,8 +45,18 @@ export const getMyLeaveRequests = asyncHandler(async (req: Request, res: Respons
 })
 
 export const getLeaveBalance = asyncHandler(async (req: Request, res: Response) => {
-  const employeeId = req.params.employeeId ?? req.user!.employeeId
-  const year = new Date().getFullYear()
+  const requestedEmployeeId = req.params.employeeId
+  const isEmployee = req.user!.role === 'employee'
+
+  if (isEmployee && requestedEmployeeId && requestedEmployeeId !== req.user!.employeeId) {
+    throw createError('Employees can only view their own leave balance', 403)
+  }
+
+  const employeeId = requestedEmployeeId ?? req.user!.employeeId
+  if (!employeeId) throw createError('employeeId is required', 400)
+
+  const requestedYear = Number(req.query.year)
+  const year = Number.isInteger(requestedYear) && requestedYear > 0 ? requestedYear : new Date().getFullYear()
 
   const result = await pool.query(
     `SELECT lt.id, lt.name, lt.days_per_year AS allowance,
@@ -70,6 +80,9 @@ export const createLeaveRequest = asyncHandler(async (req: Request, res: Respons
     throw createError('leaveTypeId, startDate, endDate, and reason are required', 400)
   }
   const canRequestForOthers = ['super_admin', 'admin', 'hr_admin'].includes(req.user!.role)
+  if (req.user!.role === 'employee' && requestedEmployeeId && requestedEmployeeId !== req.user!.employeeId) {
+    throw createError('Employees can only file leave requests for themselves', 403)
+  }
   const employeeId = canRequestForOthers && requestedEmployeeId ? requestedEmployeeId : req.user!.employeeId
   if (!employeeId) throw createError('No employee profile is linked to this user', 400)
 
@@ -112,6 +125,7 @@ export const createLeaveRequest = asyncHandler(async (req: Request, res: Respons
 export const approveLeaveRequest = asyncHandler(async (req: Request, res: Response) => {
   const { action, remarks } = req.body
   if (!action) throw createError('action is required', 400)
+  if (action !== 'approve' && action !== 'reject') throw createError('action must be approve or reject', 400)
 
   const status = action === 'approve' ? 'approved' : 'rejected'
   const result = await pool.query(
@@ -141,6 +155,11 @@ export const getLeaveCalendar = asyncHandler(async (req: Request, res: Response)
   const conditions = [`lr.status IN ('pending', 'approved')`]
   const params: unknown[] = []
   let i = 1
+
+  if (req.user!.role === 'employee') {
+    conditions.push(`lr.employee_id = $${i++}`)
+    params.push(req.user!.employeeId)
+  }
 
   if (year && month) {
     conditions.push(`EXTRACT(YEAR FROM lr.start_date) = $${i++}`)

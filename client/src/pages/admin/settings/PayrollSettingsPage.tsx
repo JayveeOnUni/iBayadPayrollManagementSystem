@@ -6,7 +6,7 @@ import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
 
 interface PayrollSettingsForm {
-  payFrequency: 'weekly' | 'semi_monthly' | 'monthly'
+  payFrequency: 'weekly' | 'semi-monthly' | 'monthly'
   semiMonthlyCutoff1: number
   semiMonthlyCutoff2: number
   semiMonthlyPayDay1: number
@@ -26,7 +26,7 @@ export default function PayrollSettingsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const { register, handleSubmit } = useForm<PayrollSettingsForm>({
     defaultValues: {
-      payFrequency: 'semi_monthly',
+      payFrequency: 'semi-monthly',
       semiMonthlyCutoff1: 15,
       semiMonthlyCutoff2: 31,
       semiMonthlyPayDay1: 20,
@@ -66,7 +66,7 @@ export default function PayrollSettingsPage() {
               <label className="text-sm font-medium text-ink">Pay Frequency</label>
               <select {...register('payFrequency')} className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white">
                 <option value="weekly">Weekly</option>
-                <option value="semi_monthly">Semi-Monthly</option>
+                <option value="semi-monthly">Semi-Monthly</option>
                 <option value="monthly">Monthly</option>
               </select>
             </div>

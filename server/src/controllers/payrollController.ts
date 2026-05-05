@@ -32,11 +32,15 @@ export const createPayrollPeriod = asyncHandler(async (req: Request, res: Respon
   if (!name || !startDate || !endDate || !payDate) {
     throw createError('name, startDate, endDate, and payDate are required', 400)
   }
+  const normalizedFrequency = payFrequency === 'semi_monthly' ? 'semi-monthly' : payFrequency ?? 'semi-monthly'
+  if (!['weekly', 'semi-monthly', 'monthly'].includes(normalizedFrequency)) {
+    throw createError('payFrequency must be weekly, semi-monthly, or monthly', 400)
+  }
 
   const result = await pool.query(
     `INSERT INTO payroll_periods (name, start_date, end_date, pay_date, pay_frequency, created_by)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [name, startDate, endDate, payDate, payFrequency ?? 'semi-monthly', req.user!.userId]
+    [name, startDate, endDate, payDate, normalizedFrequency, req.user!.userId]
   )
   res.status(201).json({ success: true, data: result.rows[0] })
 })
@@ -119,6 +123,10 @@ export const processPayroll = asyncHandler(async (req: Request, res: Response) =
   // Update period status to 'processing'
   await pool.query(
     `UPDATE payroll_periods SET status = 'processing', updated_at = NOW() WHERE id = $1`,
+    [payrollPeriodId]
+  )
+  await pool.query(
+    `UPDATE payroll_records SET status = 'processing', updated_at = NOW() WHERE payroll_period_id = $1`,
     [payrollPeriodId]
   )
 

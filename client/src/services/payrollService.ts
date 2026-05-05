@@ -34,7 +34,7 @@ export const payrollService = {
       startDate: data.startDate,
       endDate: data.endDate,
       payDate: data.payDate,
-      payFrequency: data.frequency?.replace('_', '-'),
+      payFrequency: data.frequency,
     }).then((res) => ({ ...res, data: mapPayrollPeriod(res.data) })),
 
   updatePeriod: (id: string, data: Partial<PayrollPeriod>) =>

@@ -1,42 +1,8 @@
-import { LogIn, LogOut } from 'lucide-react'
-import { useState } from 'react'
-import { useAuthStore } from '../../store/authStore'
+import { AlertCircle, CalendarClock, LogIn, LogOut, Megaphone } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { attendanceService } from '../../services/attendanceService'
-
-const announcements = [
-  { title: 'Scrum Master', startDate: 'Dec 4, 2019 21:42', endDate: 'Dec 7, 2019 23:26', description: 'Corrected item alignment' },
-  { title: 'Software Tester', startDate: 'Dec 30, 2019 05:18', endDate: 'Feb 2, 2019 19:28', description: 'Embedded analytic scripts' },
-  { title: 'Software Developer', startDate: 'Dec 30, 2019 07:52', endDate: 'Dec 4, 2019 21:42', description: 'High resolution imagery option' },
-  { title: 'UI/UX Designer', startDate: 'Dec 7, 2019 23:26', endDate: 'Feb 2, 2019 19:28', description: 'Enhanced UX for cart quantity updates' },
-  { title: 'Ethical Hacker', startDate: 'Mar 20, 2019 23:14', endDate: 'Dec 4, 2019 21:42', description: 'Cart history fixes' },
-]
-
-const leaveStats = [
-  {
-    label: 'Total leave allowance',
-    value: 34,
-    paid: 11,
-    unpaid: 4,
-  },
-  {
-    label: 'Total leave taken',
-    value: 20,
-    paid: 62,
-    unpaid: 76,
-  },
-  {
-    label: 'Total leave available',
-    value: 87,
-    paid: 50,
-    unpaid: 51,
-  },
-  {
-    label: 'Leave request pending',
-    value: 122,
-    paid: 60,
-    unpaid: 53,
-  },
-]
+import { dashboardService } from '../../services/dashboardService'
+import type { EmployeeDashboardData } from '../../types'
 
 interface ProgressBarProps {
   percent: number
@@ -45,22 +11,80 @@ interface ProgressBarProps {
 function ProgressBar({ percent }: ProgressBarProps) {
   return (
     <div className="h-2 bg-neutral-20 rounded-md overflow-hidden w-full">
-      <div
-        className="h-full bg-info rounded-md"
-        style={{ width: `${Math.min(100, percent)}%` }}
-      />
+      <div className="h-full bg-info rounded-md" style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+    </div>
+  )
+}
+
+function formatDateTime(value?: string | null, options?: Intl.DateTimeFormatOptions) {
+  if (!value) return 'Not recorded'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not recorded'
+
+  return new Intl.DateTimeFormat('en-PH', options ?? {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatTime(value?: string | null) {
+  return formatDateTime(value, { hour: 'numeric', minute: '2-digit' })
+}
+
+function formatTimeOnly(value?: string | null) {
+  if (!value) return '--:--'
+  const [hours = '0', minutes = '0'] = value.split(':')
+  const date = new Date()
+  date.setHours(Number(hours), Number(minutes), 0, 0)
+  return new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(date)
+}
+
+function hours(value: number) {
+  return `${Number(value || 0).toFixed(value % 1 === 0 ? 0 : 1)} hr`
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="border border-dashed border-border rounded-lg px-4 py-8 text-center text-sm text-muted">
+      {children}
     </div>
   )
 }
 
 export default function EmployeeDashboardPage() {
-  const { user } = useAuthStore()
+  const [dashboard, setDashboard] = useState<EmployeeDashboardData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [punchAction, setPunchAction] = useState<'in' | 'out' | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const firstName = user?.firstName ?? 'User'
+
+  const loadDashboard = useCallback(async (mode: 'initial' | 'refresh' = 'refresh') => {
+    if (mode === 'initial') setIsLoading(true)
+
+    try {
+      setError(null)
+      const res = await dashboardService.getEmployeeDashboard()
+      setDashboard(res.data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load dashboard data.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDashboard('initial')
+  }, [loadDashboard])
 
   const punch = async (action: 'in' | 'out') => {
     try {
+      setPunchAction(action)
       setMessage(null)
+      setError(null)
+
       if (action === 'in') {
         await attendanceService.clockIn()
         setMessage('Time in recorded.')
@@ -68,192 +92,247 @@ export default function EmployeeDashboardPage() {
         await attendanceService.clockOut()
         setMessage('Time out recorded.')
       }
+
+      await loadDashboard('refresh')
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Unable to update attendance.')
+      setMessage(null)
+      setError(err instanceof Error ? err.message : 'Unable to update attendance.')
+    } finally {
+      setPunchAction(null)
     }
+  }
+
+  const attendance = dashboard?.attendanceToday
+  const monthly = dashboard?.monthlyAttendance
+  const leave = dashboard?.leaveBalance
+  const canTimeIn = attendance?.status === 'Not Timed In'
+  const canTimeOut = attendance?.status === 'Timed In'
+  const isTimeInDisabled = !canTimeIn || Boolean(punchAction)
+  const isTimeOutDisabled = !canTimeOut || Boolean(punchAction)
+  const workedPercent = monthly && monthly.expectedHours > 0 ? (monthly.totalHours / monthly.expectedHours) * 100 : 0
+  const shortagePercent = monthly && monthly.expectedHours > 0 ? (monthly.shortageHours / monthly.expectedHours) * 100 : 0
+  const overtimePercent = monthly && monthly.expectedHours > 0 ? (monthly.overtimeHours / monthly.expectedHours) * 100 : 0
+
+  const leaveStats = useMemo(() => {
+    if (!leave) return []
+    const totalLeaveAllowance = 15
+
+    return [
+      { label: 'Total leave allowance', value: totalLeaveAllowance },
+      { label: 'Total leave taken', value: leave.totalTaken },
+      { label: 'Total leave available', value: Math.max(0, totalLeaveAllowance - leave.totalTaken) },
+      { label: 'Leave request pending', value: leave.pendingRequests },
+    ]
+  }, [leave])
+
+  if (isLoading) {
+    return (
+      <div className="bg-surface min-h-full px-8 py-6 space-y-4">
+        <div className="h-8 w-40 bg-neutral-20 rounded animate-pulse" />
+        {[1, 2, 3, 4].map((item) => (
+          <div key={item} className="bg-white rounded-lg p-6 space-y-4">
+            <div className="h-4 w-48 bg-neutral-20 rounded animate-pulse" />
+            <div className="h-20 bg-neutral-20 rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (
     <div className="bg-surface min-h-full">
-      {/* Page header */}
-      <div className="bg-surface px-8 py-4 flex items-center justify-between">
-        <h1 className="text-[20px] font-medium text-ink tracking-[-0.017em]">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => punch('in')}
-            className="flex items-center gap-1.5 h-7 px-4 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover transition-colors"
-          >
-            Time In
-          </button>
-          <button
-            onClick={() => punch('out')}
-            className="h-7 px-4 bg-white border border-border text-ink text-sm font-medium rounded-md hover:bg-surface transition-colors"
-          >
-            Time Out
-          </button>
+      <div className="bg-surface px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[20px] font-medium text-ink">Dashboard</h1>
+          {dashboard?.generatedAt && (
+            <p className="text-xs text-muted mt-1">{formatDateTime(dashboard.generatedAt)}</p>
+          )}
         </div>
       </div>
 
-      <div className="px-8 pb-8 space-y-4">
+      <div className="px-4 md:px-8 pb-8 space-y-4">
+        {error && (
+          <div className="flex items-start gap-2 text-sm text-danger bg-danger-surface border border-red-200 rounded-lg px-4 py-3">
+            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
         {message && (
-          <div className="text-sm text-ink bg-white border border-border rounded-lg px-4 py-3">
+          <div className="text-sm text-success bg-success-surface border border-green-200 rounded-lg px-4 py-3">
             {message}
           </div>
         )}
 
-        {/* Greeting card */}
-        <div className="bg-white rounded-lg px-4 py-3 flex items-center justify-between">
+        <div className="bg-white rounded-lg px-4 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <p className="text-base font-bold text-ink tracking-tight">Good to see you, {firstName} 👋</p>
-            <p className="text-sm text-muted mt-0.5">You came 15 minutes early today.</p>
+            <p className="text-base font-bold text-ink tracking-tight">
+              Good to see you, {dashboard?.employee.firstName ?? 'Employee'}
+            </p>
+            <p className="text-sm text-muted mt-0.5">
+              {dashboard?.employee.position || 'Position not set'}{dashboard?.employee.department ? `, ${dashboard.employee.department}` : ''}
+            </p>
+            <p className="text-xs text-muted mt-2">Attendance status: {attendance?.status ?? 'Unavailable'}</p>
           </div>
-          <div className="flex items-center gap-8">
-            {/* Punch In */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-9 h-9 flex-shrink-0">
-                <div className="absolute inset-0 bg-success-surface rounded" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <LogIn size={18} className="text-success" />
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-8">
+            <button
+              type="button"
+              disabled={isTimeInDisabled}
+              aria-busy={punchAction === 'in'}
+              aria-label="Time In"
+              onClick={() => punch('in')}
+              className="group flex items-center gap-2 rounded-lg border border-transparent p-2 text-left transition-colors hover:border-success hover:bg-success-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-transparent disabled:hover:bg-transparent"
+            >
+              <div className="w-9 h-9 bg-success-surface rounded flex items-center justify-center">
+                <LogIn size={18} className={punchAction === 'in' ? 'text-success animate-pulse' : 'text-success'} />
               </div>
               <div className="flex flex-col gap-px">
-                <span className="text-xs font-medium text-neutral-90 leading-[18px]">7:14 AM</span>
-                <span className="text-xs text-muted leading-[18px]">Punch in</span>
+                <span className="text-xs font-medium text-neutral-90 leading-[18px]">{formatTime(attendance?.timeIn)}</span>
+                <span className="text-xs text-muted leading-[18px]">{punchAction === 'in' ? 'Recording time in' : 'Punch in'}</span>
               </div>
-            </div>
-            {/* Punch Out */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-9 h-9 flex-shrink-0">
-                <div className="absolute inset-0 bg-danger-surface rounded" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <LogOut size={18} className="text-danger" />
-                </div>
+            </button>
+            <button
+              type="button"
+              disabled={isTimeOutDisabled}
+              aria-busy={punchAction === 'out'}
+              aria-label="Time Out"
+              onClick={() => punch('out')}
+              className="group flex items-center gap-2 rounded-lg border border-transparent p-2 text-left transition-colors hover:border-danger hover:bg-danger-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-transparent disabled:hover:bg-transparent"
+            >
+              <div className="w-9 h-9 bg-danger-surface rounded flex items-center justify-center">
+                <LogOut size={18} className={punchAction === 'out' ? 'text-danger animate-pulse' : 'text-danger'} />
               </div>
               <div className="flex flex-col gap-px">
-                <span className="text-xs font-medium text-neutral-90 leading-[18px]">05:00 PM</span>
-                <span className="text-xs text-muted leading-[18px]">Punch Out</span>
+                <span className="text-xs font-medium text-neutral-90 leading-[18px]">{formatTime(attendance?.timeOut)}</span>
+                <span className="text-xs text-muted leading-[18px]">{punchAction === 'out' ? 'Recording time out' : 'Punch out'}</span>
               </div>
-            </div>
+            </button>
           </div>
         </div>
 
-        {/* Leave stats */}
-        <div className="bg-white rounded-lg px-8 py-4 flex items-start gap-10">
-          {leaveStats.map((stat, i) => (
-            <div key={stat.label} className="flex items-start gap-10 flex-1">
-              <div className="flex flex-col gap-2 flex-1">
-                <p className="text-base font-medium text-neutral-90">{stat.label}</p>
-                <p className="text-[28px] font-medium text-info leading-9 tracking-[-0.021em]">{stat.value}</p>
-                <div className="flex gap-6 text-xs">
-                  <div className="flex gap-2 items-center">
-                    <span className="text-neutral-60">Paid</span>
-                    <span className="text-[#1158b7] font-medium">{stat.paid}</span>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <span className="text-neutral-60">Unpaid</span>
-                    <span className="text-danger font-medium">{stat.unpaid}</span>
-                  </div>
-                </div>
-              </div>
-              {i < leaveStats.length - 1 && (
-                <div className="w-px h-[89px] bg-border flex-shrink-0 mt-1" />
-              )}
+        <div className="bg-white rounded-lg px-4 md:px-8 py-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          {leaveStats.length ? leaveStats.map((stat) => (
+            <div key={stat.label} className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-neutral-90">{stat.label}</p>
+              <p className="text-[28px] font-medium text-info leading-9">{stat.value}</p>
             </div>
-          ))}
+          )) : (
+            <EmptyState>No leave balances are available yet.</EmptyState>
+          )}
         </div>
 
-        {/* Time Log */}
-        <div className="bg-white rounded-lg px-8 py-4">
+        <div className="bg-white rounded-lg px-4 md:px-8 py-4">
           <h2 className="text-base font-bold text-ink mb-4">Time Log</h2>
-
-          <div className="flex gap-4 items-start">
-            {/* Today */}
-            <div className="flex-1 flex flex-col gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-4">
               <p className="text-base font-medium text-neutral-90">Today</p>
-              <div className="flex gap-3">
-                <div className="flex-1 bg-surface rounded-lg px-4 py-2 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-neutral-90">08:00</p>
-                  <p className="text-xs text-neutral-60">Scheduled</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-surface rounded-lg px-4 py-3 flex flex-col gap-2">
+                  <p className="text-sm font-medium text-neutral-90">{formatTimeOnly(attendance?.scheduledStart)}</p>
+                  <p className="text-xs text-neutral-60">Scheduled in</p>
                 </div>
-                <div className="flex-1 bg-surface rounded-lg px-4 py-2 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-neutral-90">12:00</p>
-                  <p className="text-xs text-neutral-60">Balance</p>
+                <div className="bg-surface rounded-lg px-4 py-3 flex flex-col gap-2">
+                  <p className="text-sm font-medium text-neutral-90">{formatTimeOnly(attendance?.scheduledEnd)}</p>
+                  <p className="text-xs text-neutral-60">Scheduled out</p>
                 </div>
-                <div className="flex-1 bg-surface rounded-lg px-4 py-2 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-neutral-90">05:00</p>
-                  <p className="text-xs text-neutral-60">Worked</p>
+                <div className="bg-surface rounded-lg px-4 py-3 flex flex-col gap-2">
+                  <p className="text-sm font-medium text-neutral-90">{hours(attendance?.totalHours ?? 0)}</p>
+                  <p className="text-xs text-neutral-60">Worked today</p>
                 </div>
               </div>
             </div>
 
-            <div className="w-px self-stretch bg-border flex-shrink-0" />
-
-            {/* This month */}
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
               <p className="text-base font-medium text-neutral-90">This month</p>
-              <div className="flex gap-8">
-                {/* Left column */}
-                <div className="flex-1 flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="text-neutral-60">Total</span>
-                      <span className="text-neutral-90">216 hour</span>
-                    </div>
-                    <ProgressBar percent={87} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-neutral-60">Expected time</span>
+                    <span className="text-neutral-90">{hours(monthly?.expectedHours ?? 0)}</span>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="text-neutral-60">Shortage time</span>
-                      <span className="text-neutral-90">23 hour</span>
-                    </div>
-                    <ProgressBar percent={40} />
-                  </div>
+                  <ProgressBar percent={100} />
                 </div>
-                {/* Right column */}
-                <div className="flex-1 flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="text-neutral-60">Worked time</span>
-                      <span className="text-neutral-90">189 hour</span>
-                    </div>
-                    <ProgressBar percent={75} />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-neutral-60">Worked time</span>
+                    <span className="text-neutral-90">{hours(monthly?.totalHours ?? 0)}</span>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="text-neutral-60">Over time</span>
-                      <span className="text-neutral-90">56 hour</span>
-                    </div>
-                    <ProgressBar percent={55} />
+                  <ProgressBar percent={workedPercent} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-neutral-60">Shortage time</span>
+                    <span className="text-neutral-90">{hours(monthly?.shortageHours ?? 0)}</span>
                   </div>
+                  <ProgressBar percent={shortagePercent} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-neutral-60">Overtime</span>
+                    <span className="text-neutral-90">{hours(monthly?.overtimeHours ?? 0)}</span>
+                  </div>
+                  <ProgressBar percent={overtimePercent} />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Announcements */}
-        <div className="bg-white rounded-lg px-8 py-4">
-          <h2 className="text-base font-bold text-ink mb-4">Announcements</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface">
-                <th className="text-left p-3 text-xs font-normal text-ink">Title</th>
-                <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Start date</th>
-                <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">End date</th>
-                <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {announcements.map((row, i) => (
-                <tr key={i} className="border-t border-border">
-                  <td className="p-3 text-ink text-xs">{row.title}</td>
-                  <td className="p-3 text-ink text-xs">{row.startDate}</td>
-                  <td className="p-3 text-ink text-xs">{row.endDate}</td>
-                  <td className="p-3 text-ink text-xs">{row.description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg px-4 md:px-8 py-4">
+            <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
+              <CalendarClock size={16} /> Attendance Summary
+            </h2>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-muted text-xs">Present</p>
+                <p className="text-xl font-semibold text-ink">{monthly?.presentDays ?? 0}</p>
+              </div>
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-muted text-xs">Late</p>
+                <p className="text-xl font-semibold text-ink">{monthly?.lateDays ?? 0}</p>
+              </div>
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-muted text-xs">Absent</p>
+                <p className="text-xl font-semibold text-ink">{monthly?.absentDays ?? 0}</p>
+              </div>
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-muted text-xs">On leave</p>
+                <p className="text-xl font-semibold text-ink">{monthly?.leaveDays ?? 0}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg px-4 md:px-8 py-4 xl:col-span-2">
+            <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
+              <Megaphone size={16} /> Announcements
+            </h2>
+            {dashboard?.announcements.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[680px]">
+                  <thead>
+                    <tr className="bg-surface">
+                      <th className="text-left p-3 text-xs font-normal text-ink">Title</th>
+                      <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Start date</th>
+                      <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">End date</th>
+                      <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboard.announcements.map((row) => (
+                      <tr key={row.id} className="border-t border-border">
+                        <td className="p-3 text-ink text-xs font-medium">{row.title}</td>
+                        <td className="p-3 text-ink text-xs">{row.startDate ? formatDateTime(row.startDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Always active'}</td>
+                        <td className="p-3 text-ink text-xs">{row.endDate ? formatDateTime(row.endDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No end date'}</td>
+                        <td className="p-3 text-ink text-xs">{row.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState>No active announcements right now.</EmptyState>
+            )}
+          </div>
         </div>
       </div>
     </div>

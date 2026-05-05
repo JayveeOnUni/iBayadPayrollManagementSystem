@@ -82,7 +82,7 @@ export default function PayslipPage() {
                 <p className={`text-sm font-medium ${selectedPayslip?.id === p.id ? 'text-brand' : 'text-ink'}`}>
                   {formatPeso(p.netPay)}
                 </p>
-                <Badge variant={p.status === 'paid' ? 'success' : 'warning'} size="sm">{p.status}</Badge>
+                <Badge variant={p.status === 'released' ? 'success' : 'warning'} size="sm">{p.status}</Badge>
               </div>
               <p className="text-xs text-muted">{p.payrollPeriod?.name ?? 'Payroll period'}</p>
               <p className="text-xs text-muted">Pay date: {formatDate(p.payrollPeriod?.payDate ?? p.processedAt ?? p.createdAt)}</p>
