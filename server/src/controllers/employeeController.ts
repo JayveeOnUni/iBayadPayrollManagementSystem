@@ -1,6 +1,43 @@
 import { Request, Response } from 'express'
-import { EmployeeModel } from '../models/Employee'
+import bcrypt from 'bcryptjs'
+import { EmployeeModel, type EmployeeRow } from '../models/Employee'
 import { asyncHandler, createError } from '../middleware/errorHandler'
+import pool from '../utils/db'
+
+const DEFAULT_EMPLOYEE_PASSWORD = process.env.DEFAULT_EMPLOYEE_PASSWORD || 'Ibayad123!'
+
+function emptyToNull(value: unknown): string | null {
+  if (value == null) return null
+  const trimmed = String(value).trim()
+  return trimmed === '' ? null : trimmed
+}
+
+function emptyToNullIfPresent(value: unknown): string | null | undefined {
+  return value === undefined ? undefined : emptyToNull(value)
+}
+
+function requiredDate(value: unknown, fieldName: string): string {
+  const date = emptyToNull(value)
+  if (!date) throw createError(`${fieldName} is required`, 400)
+  return date
+}
+
+function optionalNumber(value: unknown): number | null {
+  if (value === '' || value == null) return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function isEmployeeNumberDuplicateError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'constraint' in error &&
+    error.code === '23505' &&
+    error.constraint === 'employees_employee_number_key'
+  )
+}
 
 export const listEmployees = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1)
@@ -31,8 +68,6 @@ export const getEmployee = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const createEmployee = asyncHandler(async (req: Request, res: Response) => {
-  const employeeNumber = await EmployeeModel.generateEmployeeNumber()
-
   const {
     firstName, middleName, lastName, email, phone,
     birthDate, gender, civilStatus,
@@ -42,44 +77,85 @@ export const createEmployee = asyncHandler(async (req: Request, res: Response) =
     bankName, bankAccountNumber, shiftId,
   } = req.body
 
-  if (!firstName || !lastName || !email || !hireDate || !basicSalary) {
+  const salary = optionalNumber(basicSalary)
+  const normalizedHireDate = requiredDate(hireDate, 'hireDate')
+
+  if (!firstName || !lastName || !email || salary == null) {
     throw createError('firstName, lastName, email, hireDate, and basicSalary are required', 400)
   }
 
-  const dailyRate = basicSalary / 22
+  const dailyRate = salary / 22
   const hourlyRate = dailyRate / 8
 
-  const employee = await EmployeeModel.create({
-    employee_number: employeeNumber,
-    first_name: firstName,
-    middle_name: middleName,
-    last_name: lastName,
-    email,
-    phone,
-    birth_date: birthDate,
-    gender,
-    civil_status: civilStatus,
-    address,
-    city,
-    province,
-    zip_code: zipCode,
-    department_id: departmentId,
-    position_id: positionId,
-    employment_type: employmentType || 'regular',
-    hire_date: hireDate,
-    basic_salary: basicSalary,
-    daily_rate: Math.round(dailyRate * 100) / 100,
-    hourly_rate: Math.round(hourlyRate * 100) / 100,
-    sss_number: sssNumber,
-    philhealth_number: philhealthNumber,
-    pagibig_number: pagibigNumber,
-    tin_number: tinNumber,
-    bank_name: bankName,
-    bank_account_number: bankAccountNumber,
-    shift_id: shiftId,
-  })
+  const client = await pool.connect()
+  let employee: EmployeeRow | undefined
+  try {
+    await client.query('BEGIN')
 
-  res.status(201).json({ success: true, data: employee })
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const employeeNumber = await EmployeeModel.generateEmployeeNumber(client)
+
+      try {
+        await client.query('SAVEPOINT employee_number_attempt')
+        employee = await EmployeeModel.create({
+          employee_number: employeeNumber,
+          first_name: emptyToNull(firstName) ?? '',
+          middle_name: emptyToNull(middleName),
+          last_name: emptyToNull(lastName) ?? '',
+          email: emptyToNull(email) ?? '',
+          phone: emptyToNull(phone),
+          birth_date: emptyToNull(birthDate),
+          gender,
+          civil_status: civilStatus,
+          address: emptyToNull(address),
+          city: emptyToNull(city),
+          province: emptyToNull(province),
+          zip_code: emptyToNull(zipCode),
+          department_id: emptyToNull(departmentId),
+          position_id: emptyToNull(positionId),
+          employment_type: employmentType || 'regular',
+          hire_date: normalizedHireDate,
+          basic_salary: salary,
+          daily_rate: Math.round(dailyRate * 100) / 100,
+          hourly_rate: Math.round(hourlyRate * 100) / 100,
+          sss_number: emptyToNull(sssNumber),
+          philhealth_number: emptyToNull(philhealthNumber),
+          pagibig_number: emptyToNull(pagibigNumber),
+          tin_number: emptyToNull(tinNumber),
+          bank_name: emptyToNull(bankName),
+          bank_account_number: emptyToNull(bankAccountNumber),
+          shift_id: emptyToNull(shiftId),
+        }, client)
+        await client.query('RELEASE SAVEPOINT employee_number_attempt')
+        break
+      } catch (error) {
+        await client.query('ROLLBACK TO SAVEPOINT employee_number_attempt')
+        if (attempt === 3 || !isEmployeeNumberDuplicateError(error)) throw error
+      }
+    }
+
+    if (!employee) throw createError('Unable to generate a unique employee number', 500)
+
+    const passwordHash = await bcrypt.hash(DEFAULT_EMPLOYEE_PASSWORD, 12)
+    await client.query(
+      `INSERT INTO users (employee_id, email, password_hash, role, is_active)
+       VALUES ($1, $2, $3, 'employee', true)`,
+      [employee.id, employee.email, passwordHash]
+    )
+
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+
+  res.status(201).json({
+    success: true,
+    data: employee,
+    message: `Employee account created. Temporary password: ${DEFAULT_EMPLOYEE_PASSWORD}`,
+  })
 })
 
 export const updateEmployee = asyncHandler(async (req: Request, res: Response) => {
@@ -92,26 +168,26 @@ export const updateEmployee = asyncHandler(async (req: Request, res: Response) =
     middle_name: body.middleName,
     last_name: body.lastName,
     email: body.email,
-    phone: body.phone,
-    birth_date: body.birthDate,
+    phone: emptyToNullIfPresent(body.phone),
+    birth_date: emptyToNullIfPresent(body.birthDate),
     gender: body.gender,
     civil_status: body.civilStatus,
-    address: body.address,
-    city: body.city,
-    province: body.province,
-    zip_code: body.zipCode,
-    department_id: body.departmentId,
-    position_id: body.positionId,
+    address: emptyToNullIfPresent(body.address),
+    city: emptyToNullIfPresent(body.city),
+    province: emptyToNullIfPresent(body.province),
+    zip_code: emptyToNullIfPresent(body.zipCode),
+    department_id: emptyToNullIfPresent(body.departmentId),
+    position_id: emptyToNullIfPresent(body.positionId),
     employment_type: body.employmentType,
-    hire_date: body.hireDate,
+    hire_date: body.hireDate === undefined ? undefined : requiredDate(body.hireDate, 'hireDate'),
     basic_salary: body.basicSalary,
-    sss_number: body.sssNumber,
-    philhealth_number: body.philhealthNumber,
-    pagibig_number: body.pagibigNumber,
-    tin_number: body.tinNumber,
-    bank_name: body.bankName,
-    bank_account_number: body.bankAccountNumber,
-    shift_id: body.shiftId,
+    sss_number: emptyToNullIfPresent(body.sssNumber),
+    philhealth_number: emptyToNullIfPresent(body.philhealthNumber),
+    pagibig_number: emptyToNullIfPresent(body.pagibigNumber),
+    tin_number: emptyToNullIfPresent(body.tinNumber),
+    bank_name: emptyToNullIfPresent(body.bankName),
+    bank_account_number: emptyToNullIfPresent(body.bankAccountNumber),
+    shift_id: emptyToNullIfPresent(body.shiftId),
   }
   const sanitized = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
   const updated = await EmployeeModel.update(req.params.id, sanitized as never)

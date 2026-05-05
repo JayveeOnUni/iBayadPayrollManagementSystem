@@ -1,10 +1,11 @@
-import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, FileText, Clock, User, LogOut, CalendarDays } from 'lucide-react'
-import { useAuthStore } from '../store/authStore'
-import { useAuth } from '../hooks/useAuth'
+import { Outlet } from 'react-router-dom'
+import { useState } from 'react'
+import { LayoutDashboard, FileText, Clock, User, CalendarDays, X } from 'lucide-react'
 import MainHeader from '../components/layout/MainHeader'
+import Sidebar from '../components/layout/Sidebar'
+import type { NavItem } from '../components/layout/Sidebar'
 
-const employeeNav = [
+const employeeNav: NavItem[] = [
   { label: 'Dashboard', to: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
   { label: 'Payslip', to: '/employee/payslip', icon: <FileText size={18} /> },
   { label: 'Attendance', to: '/employee/attendance', icon: <Clock size={18} /> },
@@ -13,59 +14,47 @@ const employeeNav = [
 ]
 
 export default function EmployeeLayout() {
-  const { user } = useAuthStore()
-  const { logout } = useAuth()
-  const fullName = user ? `${user.firstName} ${user.lastName}` : ''
-  const initials = fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
-      <MainHeader />
+      <MainHeader onMenuClick={() => setSidebarOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-[250px] min-h-full bg-sidebar flex flex-col flex-shrink-0 shadow-sidebar-right">
-          <nav className="flex-1 overflow-y-auto">
-            {employeeNav.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  [
-                    'flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-white text-ink shadow-[inset_0_-1px_0_0_#E0E0E0]'
-                      : 'text-neutral-100 hover:bg-neutral-40/30',
-                  ].join(' ')
-                }
-              >
-                {item.icon}
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+        <div className="hidden lg:block">
+          <Sidebar items={employeeNav} roleLabel="Employee" />
+        </div>
 
-          {/* User footer */}
-          <div className="border-t border-border px-4 py-3 flex items-center gap-3">
-            <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{fullName}</p>
-              <p className="text-xs text-muted">Employee</p>
-            </div>
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
             <button
-              onClick={logout}
-              className="p-1.5 text-muted hover:text-ink rounded transition-colors"
-              title="Logout"
-            >
-              <LogOut size={14} />
-            </button>
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation"
+            />
+            <div className="absolute inset-y-0 left-0 bg-white shadow-2xl">
+              <div className="flex h-14 items-center justify-end border-b border-border px-3">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(false)}
+                  className="rounded-md p-2 text-muted hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                  aria-label="Close navigation"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="h-[calc(100%-3.5rem)]">
+                <Sidebar items={employeeNav} onNavigate={() => setSidebarOpen(false)} roleLabel="Employee" />
+              </div>
+            </div>
           </div>
-        </aside>
+        )}
 
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <div className="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 lg:p-8">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

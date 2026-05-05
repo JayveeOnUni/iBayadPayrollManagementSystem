@@ -1,39 +1,43 @@
 import pool from '../utils/db'
 
+type DbDate = Date | string
+type Nullable<T> = T | null
+type Queryable = Pick<typeof pool, 'query'>
+
 export interface EmployeeRow {
   id: string
   employee_number: string
   first_name: string
-  middle_name?: string
+  middle_name?: Nullable<string>
   last_name: string
   email: string
-  phone?: string
-  birth_date: Date
-  gender: string
-  civil_status: string
-  address: string
-  city: string
-  province: string
-  zip_code: string
-  department_id: string
-  position_id: string
+  phone?: Nullable<string>
+  birth_date: Nullable<DbDate>
+  gender: Nullable<string>
+  civil_status: Nullable<string>
+  address: Nullable<string>
+  city: Nullable<string>
+  province: Nullable<string>
+  zip_code: Nullable<string>
+  department_id: Nullable<string>
+  position_id: Nullable<string>
   employment_type: string
   employment_status: string
-  hire_date: Date
-  regularization_date?: Date
-  resignation_date?: Date
+  hire_date: DbDate
+  regularization_date?: Nullable<DbDate>
+  resignation_date?: Nullable<DbDate>
   basic_salary: number
   daily_rate: number
   hourly_rate: number
-  sss_number?: string
-  philhealth_number?: string
-  pagibig_number?: string
-  tin_number?: string
-  bank_name?: string
-  bank_account_number?: string
-  avatar_url?: string
-  shift_id?: string
-  user_id?: string
+  sss_number?: Nullable<string>
+  philhealth_number?: Nullable<string>
+  pagibig_number?: Nullable<string>
+  tin_number?: Nullable<string>
+  bank_name?: Nullable<string>
+  bank_account_number?: Nullable<string>
+  avatar_url?: Nullable<string>
+  shift_id?: Nullable<string>
+  user_id?: Nullable<string>
   created_at: Date
   updated_at: Date
 }
@@ -114,8 +118,8 @@ export class EmployeeModel {
     return result.rows[0] as EmployeeRow | undefined
   }
 
-  static async create(data: Partial<EmployeeRow>) {
-    const result = await pool.query(
+  static async create(data: Partial<EmployeeRow>, db: Queryable = pool) {
+    const result = await db.query(
       `INSERT INTO employees (
         employee_number, first_name, middle_name, last_name, email, phone,
         birth_date, gender, civil_status, address, city, province, zip_code,
@@ -158,13 +162,14 @@ export class EmployeeModel {
     return result.rows[0] as EmployeeRow
   }
 
-  static async generateEmployeeNumber(): Promise<string> {
-    const result = await pool.query(
-      `SELECT employee_number FROM employees ORDER BY created_at DESC LIMIT 1`
+  static async generateEmployeeNumber(db: Queryable = pool): Promise<string> {
+    const result = await db.query(
+      `SELECT COALESCE(MAX(substring(employee_number FROM '^EMP-([0-9]+)$')::int), 0) AS last_number
+       FROM employees
+       WHERE employee_number ~ '^EMP-[0-9]+$'`
     )
-    if (result.rows.length === 0) return 'EMP-001'
-    const last = result.rows[0].employee_number as string
-    const num = parseInt(last.replace('EMP-', ''), 10)
-    return `EMP-${String(num + 1).padStart(3, '0')}`
+    const lastNumber = Number(result.rows[0]?.last_number ?? 0)
+    const nextNumber = lastNumber + 1
+    return `EMP-${String(nextNumber).padStart(3, '0')}`
   }
 }

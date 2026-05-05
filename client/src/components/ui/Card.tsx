@@ -21,7 +21,7 @@ export default function Card({
   return (
     <div
       className={[
-        'bg-white rounded-xl border border-border shadow-card',
+        'bg-white rounded-lg border border-border shadow-card',
         paddingClasses[padding],
         hover ? 'hover:shadow-md transition-shadow duration-200 cursor-pointer' : '',
         className,
@@ -41,12 +41,12 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, action, className = '' }: CardHeaderProps) {
   return (
-    <div className={`flex items-start justify-between mb-4 ${className}`}>
-      <div>
+    <div className={`mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${className}`}>
+      <div className="min-w-0">
         <h3 className="text-base font-semibold text-ink">{title}</h3>
         {subtitle && <p className="text-sm text-muted mt-0.5">{subtitle}</p>}
       </div>
-      {action && <div className="ml-4 flex-shrink-0">{action}</div>}
+      {action && <div className="flex-shrink-0">{action}</div>}
     </div>
   )
 }
@@ -77,8 +77,8 @@ export function StatCard({
     <Card className={className}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm text-muted">{label}</p>
-          <p className="text-2xl font-bold text-ink mt-1">{value}</p>
+          <p className="text-sm font-medium text-muted">{label}</p>
+          <p className="mt-1 text-2xl font-semibold leading-tight text-ink">{value}</p>
           {delta && (
             <p className={`text-xs mt-1 ${deltaColor}`}>{delta}</p>
           )}

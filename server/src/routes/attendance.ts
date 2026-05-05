@@ -23,10 +23,10 @@ router.post('/clock-out', employeeSelfService, clockOut)
 router.post('/requests', employeeSelfService, createAttendanceRequest)
 
 // Admin
-router.get('/', requireRole('admin', 'hr_admin', 'finance_admin'), getAttendanceLogs)
-router.post('/', requireRole('admin', 'hr_admin'), createAttendanceRecord)
-router.get('/summary', requireRole('admin', 'hr_admin', 'finance_admin'), getAttendanceSummary)
-router.get('/requests', requireRole('admin', 'hr_admin'), getAttendanceRequests)
-router.put('/requests/:id', requireRole('admin', 'hr_admin'), approveAttendanceRequest)
+router.get('/', requireRole('admin'), getAttendanceLogs)
+router.post('/', requireRole('admin'), createAttendanceRecord)
+router.get('/summary', requireRole('admin'), getAttendanceSummary)
+router.get('/requests', requireRole('admin'), getAttendanceRequests)
+router.put('/requests/:id', requireRole('admin'), approveAttendanceRequest)
 
 export default router

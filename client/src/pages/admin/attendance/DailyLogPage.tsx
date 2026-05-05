@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button'
 import Table from '../../../components/ui/Table'
 import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
+import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 import { formatDate, formatTime, addDays, format } from '../../../utils/dateHelpers'
 import type { AttendanceRecord } from '../../../types'
 import { attendanceService } from '../../../services/attendanceService'
@@ -76,20 +77,20 @@ export default function DailyLogPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-ink">Daily Attendance Log</h2>
-          <p className="text-sm text-muted mt-0.5">Track employee time-in and time-out records</p>
-        </div>
+      <PageHeader
+        title="Daily Attendance Log"
+        subtitle="Track employee time-in, time-out, late minutes, and daily status."
+        actions={
         <Button variant="outline" size="sm" leftIcon={<Download size={14} />} onClick={exportLogs}>
           Export
         </Button>
-      </div>
+        }
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('unable') ? 'danger' : 'info'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       {/* Date navigator */}
@@ -130,13 +131,13 @@ export default function DailyLogPage() {
       </Card>
 
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+        <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center">
           <input
             type="text"
             placeholder="Search employee..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 max-w-xs px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200"
+            className="min-h-10 w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 sm:max-w-xs"
           />
           <Button
             variant="outline"

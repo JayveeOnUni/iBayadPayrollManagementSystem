@@ -27,15 +27,15 @@ export default function Table<T extends object>({
   className = '',
 }: TableProps<T>) {
   return (
-    <div className={`w-full overflow-x-auto ${className}`}>
-      <table className="w-full text-sm text-left">
+    <div className={`w-full overflow-x-auto scrollbar-thin ${className}`} aria-busy={isLoading}>
+      <table className="min-w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-border bg-slate-50">
+          <tr className="border-b border-border bg-slate-50/90">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={[
-                  'px-4 py-3 text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap',
+                  'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted whitespace-nowrap',
                   col.headerClassName ?? '',
                   col.width ?? '',
                 ].join(' ')}
@@ -50,7 +50,7 @@ export default function Table<T extends object>({
             Array.from({ length: 5 }).map((_, i) => (
               <tr key={i} className="border-b border-border">
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3">
+                  <td key={col.key} className="px-4 py-4">
                     <div className="h-4 bg-slate-100 rounded animate-pulse w-3/4" />
                   </td>
                 ))}
@@ -58,7 +58,7 @@ export default function Table<T extends object>({
             ))
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-10 text-center text-muted">
+              <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted">
                 {emptyMessage}
               </td>
             </tr>
@@ -68,7 +68,7 @@ export default function Table<T extends object>({
                 key={rowKey ? rowKey(row, index) : index}
                 className={[
                   'border-b border-border last:border-0',
-                  'hover:bg-slate-50 transition-colors duration-100',
+                  'hover:bg-slate-50/80 transition-colors duration-100',
                   onRowClick ? 'cursor-pointer' : '',
                 ].join(' ')}
                 onClick={() => onRowClick?.(row)}
@@ -77,7 +77,7 @@ export default function Table<T extends object>({
                   <td
                     key={col.key}
                     className={[
-                      'px-4 py-3 text-ink',
+                      'px-4 py-3.5 text-ink align-middle',
                       col.className ?? '',
                     ].join(' ')}
                   >
@@ -108,15 +108,15 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
   const end = Math.min(page * limit, total)
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+    <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted">
-        Showing {start}–{end} of {total}
+        Showing {total === 0 ? 0 : start}-{end} of {total}
       </p>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <button
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="min-h-9 rounded-md border border-border px-3 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Previous
         </button>
@@ -140,7 +140,7 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
         <button
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="min-h-9 rounded-md border border-border px-3 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
         </button>

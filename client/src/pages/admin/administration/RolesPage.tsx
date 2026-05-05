@@ -7,19 +7,11 @@ import type { Role } from '../../../types'
 
 const mockRoles: Role[] = [
   {
-    id: '1', name: 'Super Admin', description: 'Full system access with all permissions',
+    id: '1', name: 'Admin', description: 'Manage employees, attendance, leave, payroll, administration, and settings',
     permissions: [], isSystem: true, createdAt: '2024-01-01', updatedAt: '2024-01-01',
   },
   {
-    id: '2', name: 'HR Admin', description: 'Manage employees, attendance, and leave',
-    permissions: [], isSystem: true, createdAt: '2024-01-01', updatedAt: '2024-01-01',
-  },
-  {
-    id: '3', name: 'Finance Admin', description: 'Process payroll and manage financial records',
-    permissions: [], isSystem: true, createdAt: '2024-01-01', updatedAt: '2024-01-01',
-  },
-  {
-    id: '4', name: 'Employee', description: 'View personal payslips, attendance, and submit leave',
+    id: '2', name: 'Employee', description: 'View personal payslips, attendance, profile, and submit leave',
     permissions: [], isSystem: true, createdAt: '2024-01-01', updatedAt: '2024-01-01',
   },
 ]

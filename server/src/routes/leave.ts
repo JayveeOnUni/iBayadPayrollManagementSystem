@@ -26,7 +26,7 @@ router.post('/requests', createLeaveRequest)
 router.put('/requests/:id/cancel', employeeSelfService, cancelLeaveRequest)
 
 // Admin/HR
-router.get('/requests', requireRole('admin', 'hr_admin'), getLeaveRequests)
-router.put('/requests/:id/review', requireRole('admin', 'hr_admin'), approveLeaveRequest)
+router.get('/requests', requireRole('admin'), getLeaveRequests)
+router.put('/requests/:id/review', requireRole('admin'), approveLeaveRequest)
 
 export default router

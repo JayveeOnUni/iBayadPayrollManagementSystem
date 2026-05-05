@@ -93,7 +93,7 @@ A dedicated **Settings** module for admins to configure and manage system-wide o
 
 ### User & Role Settings
 - Create and manage admin accounts
-- Define roles and permissions (e.g., Super Admin, HR Admin, Finance Admin)
+- Define roles and permissions for Admin and Employee users
 - Reset employee portal passwords
 - Enable or disable employee portal access per employee
 
