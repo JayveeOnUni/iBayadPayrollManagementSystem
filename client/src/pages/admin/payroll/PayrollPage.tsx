@@ -6,6 +6,7 @@ import Table, { Pagination } from '../../../components/ui/Table'
 import Badge from '../../../components/ui/Badge'
 import Modal from '../../../components/ui/Modal'
 import Input from '../../../components/ui/Input'
+import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 import { formatDate } from '../../../utils/dateHelpers'
 import { formatPeso } from '../../../utils/taxComputation'
 import type { PayrollPeriod } from '../../../types'
@@ -90,20 +91,20 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-ink">Payroll</h2>
-          <p className="text-sm text-muted mt-0.5">Process and manage payroll periods</p>
-        </div>
+      <PageHeader
+        title="Payroll"
+        subtitle="Create payroll periods, process employee pay, and release approved runs."
+        actions={
         <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsNewOpen(true)}>
           New Period
         </Button>
-      </div>
+        }
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('unable') ? 'danger' : 'info'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       {/* Summary stats */}

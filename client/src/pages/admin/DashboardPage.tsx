@@ -1,7 +1,11 @@
-import { Plus, LogIn, LogOut } from 'lucide-react'
+import { CalendarCheck, Clock3, LogIn, LogOut, Plus, Users } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
+import Button from '../../components/ui/Button'
+import Card, { CardHeader, StatCard } from '../../components/ui/Card'
+import Table from '../../components/ui/Table'
+import { EmptyState, Page, PageHeader } from '../../components/ui/Page'
 
 const announcements = [
   { title: 'Scrum Master', startDate: 'Dec 4, 2019 21:42', endDate: 'Dec 7, 2019 23:26', description: 'Corrected item alignment' },
@@ -25,117 +29,118 @@ export default function AdminDashboardPage() {
   const today = format(new Date(), 'EEEE, MMMM d, yyyy')
 
   return (
-    <div className="bg-surface min-h-full">
-      {/* Page header bar */}
-      <div className="bg-surface px-8 py-4 flex items-center justify-between">
-        <h1 className="text-[20px] font-medium text-ink tracking-[-0.017em]">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <button
+    <Page>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Monitor attendance, leave activity, and company updates."
+        actions={
+          <>
+          <Button
+            size="sm"
             onClick={() => navigate('/admin/employees')}
-            className="w-8 h-7 bg-primary flex items-center justify-center rounded-md hover:bg-primary-hover transition-colors"
-            title="Open employees"
+            leftIcon={<Plus size={14} />}
           >
-            <Plus size={16} className="text-white" />
-          </button>
-          <button
+            Add Employee
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => navigate('/admin/attendance/summary')}
-            className="h-7 px-4 bg-white border border-border text-ink text-sm font-medium rounded-md hover:bg-surface transition-colors"
           >
             Attendance Summary
-          </button>
-        </div>
-      </div>
+          </Button>
+          </>
+        }
+      />
 
-      <div className="px-8 pb-8 space-y-4">
-        {/* Greeting card */}
-        <div className="bg-white rounded-lg px-4 py-3 flex items-center justify-between">
+      <Card>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-base font-bold text-ink tracking-tight">Good to see you, {firstName} 👋</p>
-            <p className="text-sm text-muted mt-0.5">
-              {today}
-            </p>
+            <p className="text-lg font-semibold text-ink">Good to see you, {firstName}</p>
+            <p className="mt-1 text-sm text-muted">{today}</p>
           </div>
-          <div className="flex items-center gap-8">
-            {/* Time In */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-9 h-9">
-                <div className="absolute inset-0 bg-success-surface rounded" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <LogIn size={18} className="text-success" />
-                </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/attendance/daily')}
+              className="flex min-w-[180px] items-center gap-3 rounded-lg border border-border bg-success-surface/50 px-3 py-2 text-left transition-colors hover:border-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-success-surface">
+                <LogIn size={18} className="text-success" />
               </div>
-              <span className="text-sm font-medium text-muted">Time In</span>
-            </div>
-            {/* Time Out */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-9 h-9">
-                <div className="absolute inset-0 bg-danger-surface rounded" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <LogOut size={18} className="text-danger" />
-                </div>
+              <div>
+                <p className="text-sm font-medium text-ink">Time In</p>
+                <p className="text-xs text-muted">Review daily logs</p>
               </div>
-              <span className="text-sm font-medium text-muted">Time Out</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Leave stats */}
-        <div className="bg-white rounded-lg px-8 py-4 flex items-center gap-10">
-          {leaveStats.map((stat, i) => (
-            <div key={stat.label} className="flex items-center gap-10 flex-1">
-              <div className="flex flex-col gap-2 flex-1">
-                <p className="text-base font-medium text-neutral-90">{stat.label}</p>
-                <p className="text-[28px] font-medium text-info leading-9 tracking-[-0.021em] opacity-80">{stat.value}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/attendance/daily')}
+              className="flex min-w-[180px] items-center gap-3 rounded-lg border border-border bg-danger-surface/50 px-3 py-2 text-left transition-colors hover:border-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-danger-surface">
+                <LogOut size={18} className="text-danger" />
               </div>
-              {i < leaveStats.length - 1 && (
-                <div className="w-px h-[89px] bg-border flex-shrink-0" />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Announcements */}
-        <div className="bg-white rounded-lg px-8 py-4">
-          <h2 className="text-base font-bold text-ink mb-4">Announcements</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface">
-                <th className="text-left p-3 text-xs font-normal text-ink">Title</th>
-                <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Start date</th>
-                <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">End date</th>
-                <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {announcements.map((row, i) => (
-                <tr key={i} className="border-t border-border">
-                  <td className="p-3 text-ink text-xs">{row.title}</td>
-                  <td className="p-3 text-ink text-xs">{row.startDate}</td>
-                  <td className="p-3 text-ink text-xs">{row.endDate}</td>
-                  <td className="p-3 text-ink text-xs">{row.description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Celebration */}
-        <div className="bg-white rounded-lg px-8 py-4">
-          <h2 className="text-base font-bold text-ink mb-4">Celebration</h2>
-          <div className="flex items-center gap-4">
-            <div className="w-px h-16 bg-border flex-shrink-0" />
-            <div>
-              <p className="text-base font-medium text-neutral-90">This month</p>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-3 p-3">
-            <div className="w-[95px] h-[81px] bg-surface rounded-[18px] flex items-center justify-center">
-              <span className="text-xs font-medium text-neutral-90">—</span>
-            </div>
-            <p className="text-sm text-muted">No celebrations this month yet.</p>
+              <div>
+                <p className="text-sm font-medium text-ink">Time Out</p>
+                <p className="text-xs text-muted">Check incomplete punches</p>
+              </div>
+            </button>
           </div>
         </div>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {leaveStats.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            icon={<CalendarCheck size={20} className="text-info" />}
+            iconBg="bg-sky-50"
+          />
+        ))}
       </div>
-    </div>
+
+      <Card padding="none">
+        <div className="px-5 py-4">
+          <CardHeader
+            title="Announcements"
+            subtitle="Current notices shared with employees."
+            className="mb-0"
+          />
+        </div>
+        <Table
+          data={announcements}
+          rowKey={(row) => `${row.title}-${row.startDate}`}
+          emptyMessage="No announcements have been published."
+          columns={[
+            { key: 'title', header: 'Title', render: (row) => <span className="font-medium">{row.title}</span> },
+            { key: 'startDate', header: 'Start date' },
+            { key: 'endDate', header: 'End date' },
+            { key: 'description', header: 'Description' },
+          ]}
+        />
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <StatCard
+          label="Active employees"
+          value="Review"
+          delta="Open employee directory"
+          icon={<Users size={20} className="text-brand" />}
+          iconBg="bg-brand-50"
+          className="lg:col-span-1"
+        />
+        <Card className="lg:col-span-2">
+          <CardHeader title="Celebration" subtitle="This month" />
+          <EmptyState
+            title="No celebrations this month yet."
+            description="Birthdays and work anniversaries will appear here once available."
+            icon={<Clock3 size={22} />}
+          />
+        </Card>
+      </div>
+    </Page>
   )
 }

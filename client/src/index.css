@@ -17,6 +17,17 @@
     @apply bg-surface text-ink;
     margin: 0;
   }
+
+  ::selection {
+    @apply bg-brand-100 text-ink;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 @layer components {

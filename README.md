@@ -108,7 +108,7 @@ iBayadPayrollManagementSystem/
 2. The backend validates the email/password pair, returns access and refresh tokens, and stores a refresh token hash.
 3. The frontend persists the authenticated user and token state with Zustand.
 4. Users are routed by role:
-   - Admin, HR admin, and Finance admin users go to `/admin/dashboard`.
+   - Admin users go to `/admin/dashboard`.
    - Employee users go to `/employee/dashboard`.
 5. Admin users manage employees, attendance, leave, payroll periods, and payroll approvals.
 6. Employee users view personal payroll, attendance, and profile information.
@@ -229,7 +229,7 @@ psql -U postgres -d ibayad_payroll -f server/src/db/schema.sql
 
 ### 7. Seed demo/test accounts
 
-The repository includes a seed file with one account per major role:
+The repository includes a seed file with one account per supported role:
 
 ```bash
 psql -U postgres -d ibayad_payroll -f server/src/db/seed-test-accounts.sql
@@ -245,10 +245,7 @@ Demo accounts:
 
 | Role | Email |
 | --- | --- |
-| Super Admin | `super.admin@ibayad.test` |
 | Admin | `admin@ibayad.test` |
-| HR Admin | `hr.admin@ibayad.test` |
-| Finance Admin | `finance.admin@ibayad.test` |
 | Employee | `employee@ibayad.test` |
 
 Change these passwords immediately for any shared or deployed environment.
@@ -327,7 +324,6 @@ npm run lint      # Run ESLint against server source
 
 - Frontend API contracts need alignment with backend responses. For example, auth responses are returned under `data`, but `useAuth` expects `response.user` and `response.tokens`.
 - Several service methods call routes that do not exist yet, such as some payroll, leave, attendance, and employee activate/deactivate paths.
-- Admin route protection in the client does not include `super_admin`, while the type definitions and backend role enum include it.
 - Some backend models appear to reference older table names or column names, such as `leave_applications`, `leave_balances`, and `shifts`, while the schema uses `leave_requests`, computed leave balances, and `work_shifts`.
 - Payroll batch processing uses simplified working-day logic and appears to reference a `loans.amount` field that is not present in the schema.
 - Attendance clock-in/clock-out uses hardcoded 8:00 AM and 5:00 PM schedules instead of employee shift data.

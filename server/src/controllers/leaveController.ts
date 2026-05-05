@@ -79,7 +79,7 @@ export const createLeaveRequest = asyncHandler(async (req: Request, res: Respons
   if (!leaveTypeId || !startDate || !endDate || !reason) {
     throw createError('leaveTypeId, startDate, endDate, and reason are required', 400)
   }
-  const canRequestForOthers = ['super_admin', 'admin', 'hr_admin'].includes(req.user!.role)
+  const canRequestForOthers = req.user!.role === 'admin'
   if (req.user!.role === 'employee' && requestedEmployeeId && requestedEmployeeId !== req.user!.employeeId) {
     throw createError('Employees can only file leave requests for themselves', 403)
   }

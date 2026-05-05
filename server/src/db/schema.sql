@@ -15,7 +15,7 @@ CREATE TYPE pay_frequency AS ENUM ('weekly', 'semi-monthly', 'monthly');
 CREATE TYPE payroll_status AS ENUM ('draft', 'processing', 'approved', 'released', 'cancelled');
 CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'late', 'half_day', 'holiday', 'rest_day', 'on_leave');
 CREATE TYPE leave_request_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled');
-CREATE TYPE user_role AS ENUM ('super_admin', 'admin', 'hr_admin', 'finance_admin', 'employee');
+CREATE TYPE user_role AS ENUM ('admin', 'employee');
 CREATE TYPE loan_status AS ENUM ('active', 'paid', 'defaulted', 'cancelled');
 
 -- ─── Departments ─────────────────────────────────────────────────────────────

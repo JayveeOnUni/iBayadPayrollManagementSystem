@@ -50,7 +50,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 
 /**
  * Middleware factory: require specific roles.
- * Usage: requireRole('super_admin', 'hr_admin')
+ * Usage: requireRole('admin')
  */
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -90,4 +90,4 @@ export const employeeSelfService = [
 /**
  * Admin-only shorthand.
  */
-export const adminOnly = requireRole('super_admin', 'admin', 'hr_admin', 'finance_admin')
+export const adminOnly = requireRole('admin')

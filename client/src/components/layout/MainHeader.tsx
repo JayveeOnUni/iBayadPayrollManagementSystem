@@ -1,10 +1,14 @@
-import { Bell, Globe, ChevronDown } from 'lucide-react'
+import { Bell, Globe, ChevronDown, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useAuth } from '../../hooks/useAuth'
 
-export default function MainHeader() {
+interface MainHeaderProps {
+  onMenuClick?: () => void
+}
+
+export default function MainHeader({ onMenuClick }: MainHeaderProps) {
   const { user } = useAuthStore()
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -18,7 +22,15 @@ export default function MainHeader() {
     .slice(0, 2)
 
   return (
-    <header className="h-[50px] bg-white border-b border-border flex items-center px-12 gap-4 sticky top-0 z-30 flex-shrink-0">
+    <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-3 border-b border-border bg-white px-4 sm:px-6 lg:px-8">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        className="rounded-md p-2 text-muted transition-colors hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 lg:hidden"
+        aria-label="Open navigation"
+      >
+        <Menu size={20} />
+      </button>
       {/* Logo */}
       <div className="flex items-center gap-2 flex-1">
         <div className="w-[30px] h-[21px] flex items-center justify-center">
@@ -28,18 +40,19 @@ export default function MainHeader() {
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-2 sm:gap-4">
         {/* Language */}
-        <button className="flex items-center gap-1.5 text-sm font-medium text-ink" title="English language selected">
+        <button type="button" className="hidden min-h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-ink transition-colors hover:bg-slate-100 sm:flex" title="English language selected">
           <Globe size={16} className="text-ink" />
           <span>EN</span>
         </button>
 
         {/* Notifications */}
         <button
-          className="text-ink hover:text-muted transition-colors"
+          type="button"
+          className="rounded-md p-2 text-ink transition-colors hover:bg-slate-100 hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
           onClick={() => navigate(user?.role === 'employee' ? '/employee/dashboard' : '/admin/administration/announcements')}
-          title="Open announcements"
+          aria-label="Open announcements"
         >
           <Bell size={16} />
         </button>
@@ -47,8 +60,11 @@ export default function MainHeader() {
         {/* Profile */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setDropdownOpen((v) => !v)}
-            className="flex items-center gap-1.5"
+            className="flex min-h-9 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+            aria-expanded={dropdownOpen}
+            aria-label="Open user menu"
           >
             <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-semibold">
               {initials}

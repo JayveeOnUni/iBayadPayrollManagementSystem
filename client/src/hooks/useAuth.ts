@@ -49,20 +49,13 @@ export function useAuth() {
     }
   }
 
-  const isAdmin =
-    user?.role === 'super_admin' ||
-    user?.role === 'admin' ||
-    user?.role === 'hr_admin' ||
-    user?.role === 'finance_admin'
-
-  const isSuperAdmin = user?.role === 'super_admin'
+  const isAdmin = user?.role === 'admin'
 
   return {
     user,
     isAuthenticated,
     isLoading,
     isAdmin,
-    isSuperAdmin,
     error,
     login,
     logout,

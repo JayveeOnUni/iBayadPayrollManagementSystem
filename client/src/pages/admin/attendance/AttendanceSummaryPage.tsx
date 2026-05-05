@@ -4,6 +4,7 @@ import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Table from '../../../components/ui/Table'
 import Avatar from '../../../components/ui/Avatar'
+import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 import { format, addMonths, subMonths } from '../../../utils/dateHelpers'
 import { attendanceService } from '../../../services/attendanceService'
 import { employeeService } from '../../../services/employeeService'
@@ -81,20 +82,20 @@ export default function AttendanceSummaryPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-ink">Attendance Summary</h2>
-          <p className="text-sm text-muted mt-0.5">Monthly attendance overview per employee</p>
-        </div>
+      <PageHeader
+        title="Attendance Summary"
+        subtitle="Review monthly attendance totals per active employee."
+        actions={
         <Button variant="outline" size="sm" leftIcon={<Download size={14} />} onClick={exportSummary}>
           Export Report
         </Button>
-      </div>
+        }
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('unable') ? 'danger' : 'info'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       {/* Month navigator */}

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { attendanceService } from '../../services/attendanceService'
 import { dashboardService } from '../../services/dashboardService'
 import type { EmployeeDashboardData } from '../../types'
+import { FeedbackMessage, Page, PageHeader } from '../../components/ui/Page'
 
 interface ProgressBarProps {
   percent: number
@@ -127,7 +128,7 @@ export default function EmployeeDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-surface min-h-full px-8 py-6 space-y-4">
+      <Page>
         <div className="h-8 w-40 bg-neutral-20 rounded animate-pulse" />
         {[1, 2, 3, 4].map((item) => (
           <div key={item} className="bg-white rounded-lg p-6 space-y-4">
@@ -135,32 +136,27 @@ export default function EmployeeDashboardPage() {
             <div className="h-20 bg-neutral-20 rounded animate-pulse" />
           </div>
         ))}
-      </div>
+      </Page>
     )
   }
 
   return (
-    <div className="bg-surface min-h-full">
-      <div className="bg-surface px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-medium text-ink">Dashboard</h1>
-          {dashboard?.generatedAt && (
-            <p className="text-xs text-muted mt-1">{formatDateTime(dashboard.generatedAt)}</p>
-          )}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Dashboard"
+        subtitle={dashboard?.generatedAt ? `Updated ${formatDateTime(dashboard.generatedAt)}` : 'Your attendance and leave overview.'}
+      />
 
-      <div className="px-4 md:px-8 pb-8 space-y-4">
         {error && (
-          <div className="flex items-start gap-2 text-sm text-danger bg-danger-surface border border-red-200 rounded-lg px-4 py-3">
+          <FeedbackMessage variant="danger" className="flex items-start gap-2">
             <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
             <span>{error}</span>
-          </div>
+          </FeedbackMessage>
         )}
         {message && (
-          <div className="text-sm text-success bg-success-surface border border-green-200 rounded-lg px-4 py-3">
+          <FeedbackMessage variant="success">
             {message}
-          </div>
+          </FeedbackMessage>
         )}
 
         <div className="bg-white rounded-lg px-4 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -334,7 +330,6 @@ export default function EmployeeDashboardPage() {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </Page>
   )
 }
