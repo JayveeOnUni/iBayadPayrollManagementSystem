@@ -33,6 +33,7 @@ import AttendanceSettingsPage from './pages/admin/settings/AttendanceSettingsPag
 import EmployeeDashboardPage from './pages/employee/DashboardPage'
 import PayslipPage from './pages/employee/PayslipPage'
 import AttendancePage from './pages/employee/AttendancePage'
+import EmployeeLeavePage from './pages/employee/LeavePage'
 import ProfilePage from './pages/employee/ProfilePage'
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="dashboard" element={<EmployeeDashboardPage />} />
           <Route path="payslip" element={<PayslipPage />} />
           <Route path="attendance" element={<AttendancePage />} />
+          <Route path="leave" element={<EmployeeLeavePage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 

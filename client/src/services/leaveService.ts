@@ -2,6 +2,20 @@ import { api } from './api'
 import type { LeaveApplication, LeaveBalance, LeaveApplicationFormData, ApiResponse } from '../types'
 import { mapLeave } from './mappers'
 
+function mapLeaveBalance(row: Record<string, unknown>): LeaveBalance {
+  const name = String(row.name ?? row.leave_type ?? row.leaveType ?? 'others')
+
+  return {
+    id: String(row.id ?? ''),
+    employeeId: String(row.employee_id ?? row.employeeId ?? ''),
+    leaveType: name.toLowerCase().replace(' leave', '').replace(/\s+/g, '_') as LeaveBalance['leaveType'],
+    allocated: Number(row.allowance ?? row.allocated ?? 0),
+    used: Number(row.taken ?? row.used ?? 0),
+    remaining: Number(row.balance ?? row.remaining ?? 0),
+    year: Number(row.year ?? new Date().getFullYear()),
+  }
+}
+
 export interface LeaveListParams {
   page?: number
   limit?: number
@@ -54,10 +68,12 @@ export const leaveService = {
 
   // Balances
   getBalances: (employeeId: string, year?: number) =>
-    api.get<ApiResponse<LeaveBalance[]>>(`/leave/balance/${employeeId}`, year ? { year } : {}),
+    api.get<ApiResponse<Record<string, unknown>[]>>(`/leave/balance/${employeeId}`, year ? { year } : {})
+      .then((res) => ({ ...res, data: res.data.map(mapLeaveBalance) })),
 
   getMyBalances: (year?: number) =>
-    api.get<ApiResponse<LeaveBalance[]>>('/leave/balance', year ? { year } : {}),
+    api.get<ApiResponse<Record<string, unknown>[]>>('/leave/balance', year ? { year } : {})
+      .then((res) => ({ ...res, data: res.data.map(mapLeaveBalance) })),
 
   getMyApplications: (params?: LeaveListParams) =>
     api.get<ApiResponse<Record<string, unknown>[]>>('/leave/my-requests', params as Record<string, string | number | boolean>)

@@ -211,8 +211,8 @@ export interface Holiday {
 
 // ─── Payroll ──────────────────────────────────────────────────────────────────
 
-export type PayFrequency = 'weekly' | 'semi_monthly' | 'monthly'
-export type PayrollStatus = 'draft' | 'processing' | 'approved' | 'paid' | 'cancelled'
+export type PayFrequency = 'weekly' | 'semi-monthly' | 'monthly'
+export type PayrollStatus = 'draft' | 'processing' | 'approved' | 'released' | 'cancelled'
 
 export interface PayrollPeriod {
   id: string
@@ -401,6 +401,74 @@ export interface DashboardStats {
   upcomingPayDate?: string
   lastPayrollTotal?: number
   currentPeriod?: PayrollPeriod
+}
+
+export interface EmployeeDashboardData {
+  employee: {
+    id: string
+    employeeNumber: string
+    name: string
+    firstName: string
+    lastName: string
+    email: string
+    department?: string
+    position?: string
+  }
+  attendanceToday: {
+    id: string | null
+    status: 'Not Timed In' | 'Timed In' | 'Timed Out'
+    attendanceStatus: AttendanceStatus | null
+    date: string
+    timeIn: string | null
+    timeOut: string | null
+    totalHours: number
+    scheduledStart: string
+    scheduledEnd: string
+    scheduledHours: number
+    lateMinutes: number
+    overtimeHours: number
+  }
+  monthlyAttendance: {
+    presentDays: number
+    lateDays: number
+    absentDays: number
+    halfDays: number
+    leaveDays: number
+    totalHours: number
+    expectedHours: number
+    shortageHours: number
+    overtimeHours: number
+    lateMinutes: number
+  }
+  leaveBalance: {
+    vacationLeave: number
+    sickLeave: number
+    emergencyLeave: number
+    totalAllowance: number
+    totalTaken: number
+    totalAvailable: number
+    pendingRequests: number
+    items: Array<{
+      id: string
+      name: string
+      code: string
+      isPaid: boolean
+      allowance: number
+      taken: number
+      pending: number
+      balance: number
+    }>
+  }
+  announcements: Array<{
+    id: string
+    title: string
+    message: string
+    startDate: string | null
+    endDate: string | null
+    isPinned: boolean
+    createdAt: string
+  }>
+  generatedAt: string
 }
 
 // ─── API Response wrappers ────────────────────────────────────────────────────

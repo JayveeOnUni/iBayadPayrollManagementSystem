@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, FileText, Clock, User, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, Clock, User, LogOut, CalendarDays } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useAuth } from '../hooks/useAuth'
 import MainHeader from '../components/layout/MainHeader'
@@ -8,6 +8,7 @@ const employeeNav = [
   { label: 'Dashboard', to: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
   { label: 'Payslip', to: '/employee/payslip', icon: <FileText size={18} /> },
   { label: 'Attendance', to: '/employee/attendance', icon: <Clock size={18} /> },
+  { label: 'Leave', to: '/employee/leave', icon: <CalendarDays size={18} /> },
   { label: 'Profile', to: '/employee/profile', icon: <User size={18} /> },
 ]
 

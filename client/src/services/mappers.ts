@@ -160,11 +160,11 @@ export function mapPayrollPeriod(row: Row): PayrollPeriod {
   return {
     id: str(row.id),
     name: str(row.name),
-    frequency: str(row.pay_frequency ?? row.frequency, 'semi-monthly').replace('-', '_') as PayrollPeriod['frequency'],
+    frequency: str(row.pay_frequency ?? row.frequency, 'semi-monthly') as PayrollPeriod['frequency'],
     startDate: str(row.start_date ?? row.startDate),
     endDate: str(row.end_date ?? row.endDate),
     payDate: str(row.pay_date ?? row.payDate),
-    status: str(row.status).replace('released', 'paid') as PayrollPeriod['status'],
+    status: str(row.status, 'draft') as PayrollPeriod['status'],
     createdAt: str(row.created_at ?? row.createdAt),
     updatedAt: str(row.updated_at ?? row.updatedAt),
   }
@@ -178,7 +178,7 @@ export function mapPayrollRecord(row: Row): PayrollRecord {
       ? {
           id: str(row.payroll_period_id ?? row.payrollPeriodId),
           name: str(row.period_name),
-          frequency: 'semi_monthly',
+          frequency: str(row.pay_frequency ?? row.frequency, 'semi-monthly') as PayrollPeriod['frequency'],
           startDate: str(row.start_date),
           endDate: str(row.end_date),
           payDate: str(row.pay_date),
@@ -225,7 +225,7 @@ export function mapPayrollRecord(row: Row): PayrollRecord {
     overtimeHours: num(row.overtime_hours),
     absentDays: num(row.absent_days),
     lateDays: num(row.late_days),
-    status: str(row.status).replace('released', 'paid') as PayrollRecord['status'],
+    status: str(row.status, 'draft') as PayrollRecord['status'],
     remarks: row.remarks ? str(row.remarks) : undefined,
     processedBy: row.processed_by ? str(row.processed_by) : undefined,
     processedAt: row.processed_at ? str(row.processed_at) : undefined,

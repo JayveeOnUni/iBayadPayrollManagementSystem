@@ -1,65 +1,69 @@
 import pool from '../utils/db'
 
+export type PayFrequency = 'weekly' | 'semi-monthly' | 'monthly'
+export type PayrollStatus = 'draft' | 'processing' | 'approved' | 'released' | 'cancelled'
+
 export interface PayrollPeriodRow {
   id: string
   name: string
-  frequency: 'weekly' | 'semi_monthly' | 'monthly'
   start_date: Date
   end_date: Date
   pay_date: Date
-  status: 'draft' | 'processing' | 'approved' | 'paid' | 'cancelled'
+  pay_frequency: PayFrequency
+  status: PayrollStatus
+  created_by?: string
+  approved_by?: string
+  approved_at?: Date
   created_at: Date
   updated_at: Date
 }
 
 export interface PayrollRecordRow {
   id: string
-  payroll_period_id: string
   employee_id: string
-  basic_pay: number
+  payroll_period_id: string
+  basic_salary: number
+  daily_rate: number
+  hourly_rate: number
+  regular_pay: number
   overtime_pay: number
   holiday_pay: number
-  night_differential: number
-  thirteenth_month_pay: number
+  night_diff_pay: number
   allowances: number
   other_earnings: number
   gross_pay: number
-  sss_employee: number
-  philhealth_employee: number
-  pagibig_employee: number
-  withholding_tax: number
   absence_deduction: number
   late_deduction: number
+  sss_employee: number
+  phil_health_employee: number
+  pag_ibig_employee: number
+  withholding_tax: number
   loan_deductions: number
   other_deductions: number
   total_deductions: number
+  sss_employer: number
+  phil_health_employer: number
+  pag_ibig_employer: number
   net_pay: number
-  days_worked: number
-  hours_worked: number
-  overtime_hours: number
-  absent_days: number
-  late_days: number
-  status: string
-  remarks?: string
-  processed_by?: string
-  processed_at?: Date
+  status: PayrollStatus
   created_at: Date
   updated_at: Date
 }
 
 export class PayrollPeriodModel {
-  static async findAll(params: { page: number; limit: number; status?: string }) {
+  static async findAll(params: { page: number; limit: number; status?: PayrollStatus }) {
     const offset = (params.page - 1) * params.limit
-    const where = params.status ? `WHERE status = $3` : ''
-    const values: (string | number)[] = params.status
-      ? [params.limit, offset, params.status]
-      : [params.limit, offset]
+    const where = params.status ? `WHERE status = $1` : ''
+    const countValues = params.status ? [params.status] : []
+    const dataValues = params.status ? [params.status, params.limit, offset] : [params.limit, offset]
+    const limitParam = params.status ? 2 : 1
+    const offsetParam = params.status ? 3 : 2
 
     const [count, data] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM payroll_periods ${where}`, params.status ? [params.status] : []),
+      pool.query(`SELECT COUNT(*) FROM payroll_periods ${where}`, countValues),
       pool.query(
-        `SELECT * FROM payroll_periods ${where} ORDER BY start_date DESC LIMIT $1 OFFSET $2`,
-        values
+        `SELECT * FROM payroll_periods ${where} ORDER BY start_date DESC LIMIT $${limitParam} OFFSET $${offsetParam}`,
+        dataValues
       ),
     ])
 
@@ -74,21 +78,34 @@ export class PayrollPeriodModel {
     return result.rows[0] as PayrollPeriodRow | undefined
   }
 
-  static async create(data: Partial<PayrollPeriodRow>) {
+  static async create(data: {
+    name: string
+    startDate: string
+    endDate: string
+    payDate: string
+    payFrequency?: PayFrequency
+    createdBy?: string
+  }) {
     const result = await pool.query(
-      `INSERT INTO payroll_periods (name, frequency, start_date, end_date, pay_date, status)
-       VALUES ($1, $2, $3, $4, $5, 'draft') RETURNING *`,
-      [data.name, data.frequency, data.start_date, data.end_date, data.pay_date]
+      `INSERT INTO payroll_periods (name, start_date, end_date, pay_date, pay_frequency, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [data.name, data.startDate, data.endDate, data.payDate, data.payFrequency ?? 'semi-monthly', data.createdBy ?? null]
     )
     return result.rows[0] as PayrollPeriodRow
   }
 
-  static async updateStatus(id: string, status: string) {
+  static async updateStatus(id: string, status: PayrollStatus, approvedBy?: string) {
     const result = await pool.query(
-      `UPDATE payroll_periods SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [id, status]
+      `UPDATE payroll_periods
+       SET status = $2,
+           approved_by = COALESCE($3, approved_by),
+           approved_at = CASE WHEN $2 = 'approved' THEN NOW() ELSE approved_at END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, status, approvedBy ?? null]
     )
-    return result.rows[0] as PayrollPeriodRow
+    return result.rows[0] as PayrollPeriodRow | undefined
   }
 }
 
@@ -119,35 +136,15 @@ export class PayrollRecordModel {
     return result.rows[0] as PayrollRecordRow | undefined
   }
 
-  static async upsert(data: Partial<PayrollRecordRow>) {
+  static async findByEmployee(employeeId: string) {
     const result = await pool.query(
-      `INSERT INTO payroll_records (
-        payroll_period_id, employee_id,
-        basic_pay, overtime_pay, holiday_pay, night_differential,
-        thirteenth_month_pay, allowances, other_earnings, gross_pay,
-        sss_employee, philhealth_employee, pagibig_employee, withholding_tax,
-        absence_deduction, late_deduction, loan_deductions, other_deductions, total_deductions,
-        net_pay, days_worked, hours_worked, overtime_hours, absent_days, late_days, status
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19,
-        $20, $21, $22, $23, $24, $25, $26
-      )
-      ON CONFLICT (payroll_period_id, employee_id)
-      DO UPDATE SET
-        basic_pay = EXCLUDED.basic_pay,
-        net_pay = EXCLUDED.net_pay,
-        updated_at = NOW()
-      RETURNING *`,
-      [
-        data.payroll_period_id, data.employee_id,
-        data.basic_pay, data.overtime_pay, data.holiday_pay, data.night_differential,
-        data.thirteenth_month_pay, data.allowances, data.other_earnings, data.gross_pay,
-        data.sss_employee, data.philhealth_employee, data.pagibig_employee, data.withholding_tax,
-        data.absence_deduction, data.late_deduction, data.loan_deductions, data.other_deductions, data.total_deductions,
-        data.net_pay, data.days_worked, data.hours_worked, data.overtime_hours, data.absent_days, data.late_days, 'draft',
-      ]
+      `SELECT pr.*, pp.name AS period_name, pp.pay_date
+       FROM payroll_records pr
+       JOIN payroll_periods pp ON pp.id = pr.payroll_period_id
+       WHERE pr.employee_id = $1
+       ORDER BY pp.pay_date DESC`,
+      [employeeId]
     )
-    return result.rows[0] as PayrollRecordRow
+    return result.rows as PayrollRecordRow[]
   }
 }

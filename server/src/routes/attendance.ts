@@ -10,17 +10,17 @@ import {
   createAttendanceRequest,
   approveAttendanceRequest,
 } from '../controllers/attendanceController'
-import { authenticate, requireRole } from '../middleware/auth'
+import { authenticate, employeeSelfService, requireRole } from '../middleware/auth'
 
 const router = Router()
 
 router.use(authenticate)
 
 // Employee self-service
-router.get('/my-logs', getMyAttendance)
-router.post('/clock-in', clockIn)
-router.post('/clock-out', clockOut)
-router.post('/requests', createAttendanceRequest)
+router.get('/my-logs', employeeSelfService, getMyAttendance)
+router.post('/clock-in', employeeSelfService, clockIn)
+router.post('/clock-out', employeeSelfService, clockOut)
+router.post('/requests', employeeSelfService, createAttendanceRequest)
 
 // Admin
 router.get('/', requireRole('admin', 'hr_admin', 'finance_admin'), getAttendanceLogs)

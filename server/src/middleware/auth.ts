@@ -72,6 +72,22 @@ export function requireRole(...roles: string[]) {
 }
 
 /**
+ * Employee self-service shorthand.
+ * Requires an employee role and a linked employee profile before serving personal records.
+ */
+export const employeeSelfService = [
+  requireRole('employee'),
+  (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user?.employeeId) {
+      res.status(403).json({ success: false, message: 'No employee profile is linked to this account' })
+      return
+    }
+
+    next()
+  },
+]
+
+/**
  * Admin-only shorthand.
  */
 export const adminOnly = requireRole('super_admin', 'admin', 'hr_admin', 'finance_admin')
