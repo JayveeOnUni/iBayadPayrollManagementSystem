@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Filter, Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Filter, Download, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Table from '../../../components/ui/Table'
 import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
+import Input from '../../../components/ui/Input'
 import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 import { formatDate, formatTime, addDays, format } from '../../../utils/dateHelpers'
 import type { AttendanceRecord } from '../../../types'
@@ -97,8 +98,9 @@ export default function DailyLogPage() {
       <Card>
         <div className="flex items-center justify-between">
           <button
+            type="button"
             onClick={() => setSelectedDate((d) => addDays(d, -1))}
-            className="p-2 rounded-lg hover:bg-slate-100 text-muted hover:text-ink transition-colors"
+            className="rounded-md p-2 text-muted transition-colors hover:bg-neutral-20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
           >
             <ChevronLeft size={18} />
           </button>
@@ -107,8 +109,9 @@ export default function DailyLogPage() {
             <p className="text-sm text-muted">{formatDate(selectedDate, 'MMMM d, yyyy')}</p>
           </div>
           <button
+            type="button"
             onClick={() => setSelectedDate((d) => addDays(d, 1))}
-            className="p-2 rounded-lg hover:bg-slate-100 text-muted hover:text-ink transition-colors"
+            className="rounded-md p-2 text-muted transition-colors hover:bg-neutral-20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
           >
             <ChevronRight size={18} />
           </button>
@@ -122,7 +125,7 @@ export default function DailyLogPage() {
             { label: 'Absent', count: countStatus('absent'), variant: 'danger' as const },
             { label: 'On Leave', count: countStatus('on_leave'), variant: 'info' as const },
           ].map((s) => (
-            <div key={s.label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-border">
+            <div key={s.label} className="flex items-center gap-2 rounded-lg border border-border bg-neutral-20 px-3 py-2">
               <Badge variant={s.variant}>{s.label}</Badge>
               <span className="text-sm font-semibold text-ink">{s.count}</span>
             </div>
@@ -132,12 +135,13 @@ export default function DailyLogPage() {
 
       <Card padding="none">
         <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center">
-          <input
+          <Input
             type="text"
             placeholder="Search employee..."
             value={search}
+            leftAddon={<Search size={15} />}
             onChange={(e) => setSearch(e.target.value)}
-            className="min-h-10 w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 sm:max-w-xs"
+            className="sm:max-w-xs"
           />
           <Button
             variant="outline"
@@ -189,7 +193,7 @@ export default function DailyLogPage() {
               key: 'lateMinutes',
               header: 'Late',
               render: (row) => (
-                <span className={`text-sm ${row.lateMinutes > 0 ? 'text-amber-600 font-medium' : 'text-muted'}`}>
+                <span className={`text-sm ${row.lateMinutes > 0 ? 'font-medium text-warning' : 'text-muted'}`}>
                   {row.lateMinutes > 0 ? `${row.lateMinutes} min` : '—'}
                 </span>
               ),

@@ -11,30 +11,28 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, leftAddon, rightAddon, className = '', id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+    const helpId = inputId ? `${inputId}-help` : undefined
 
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
           <label htmlFor={inputId} className="text-sm font-medium text-ink">
             {label}
-            {props.required && <span className="text-red-500 ml-0.5">*</span>}
+            {props.required && <span className="text-danger ml-0.5">*</span>}
           </label>
         )}
         <div className="relative flex items-center">
           {leftAddon && (
-            <div className="absolute left-3 text-muted pointer-events-none">{leftAddon}</div>
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">{leftAddon}</div>
           )}
           <input
             ref={ref}
             id={inputId}
+            aria-invalid={Boolean(error) || undefined}
+            aria-describedby={error || hint ? helpId : undefined}
             className={[
-              'w-full rounded-md border bg-white text-ink text-sm',
-              'px-3 py-2 min-h-10',
-              'placeholder:text-slate-400',
-              'transition-colors duration-150',
-              'focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand',
-              'disabled:bg-slate-50 disabled:text-muted disabled:cursor-not-allowed',
-              error ? 'border-red-400 focus:ring-red-200 focus:border-red-500' : 'border-border',
+              'field-base',
+              error ? 'border-danger focus:ring-danger-border focus:border-danger' : '',
               leftAddon ? 'pl-9' : '',
               rightAddon ? 'pr-9' : '',
               className,
@@ -42,11 +40,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {rightAddon && (
-            <div className="absolute right-3 text-muted">{rightAddon}</div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">{rightAddon}</div>
           )}
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        {hint && !error && <p className="text-xs text-muted">{hint}</p>}
+        {error && <p id={helpId} className="text-xs text-danger">{error}</p>}
+        {hint && !error && <p id={helpId} className="text-xs text-muted">{hint}</p>}
       </div>
     )
   }

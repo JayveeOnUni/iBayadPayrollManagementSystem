@@ -32,7 +32,7 @@ export function PageHeader({ title, subtitle, actions, className = '' }: PageHea
   return (
     <div className={`flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${className}`}>
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold leading-tight text-ink">{title}</h1>
+        <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-1 text-sm leading-6 text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
@@ -51,7 +51,7 @@ interface EmptyStateProps {
 export function EmptyState({ title, description, icon, action, className = '' }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-white px-4 py-10 text-center ${className}`}
+      className={`flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-white px-4 py-10 text-center shadow-card ${className}`}
     >
       {icon && <div className="mb-3 text-muted">{icon}</div>}
       <p className="text-sm font-medium text-ink">{title}</p>
@@ -68,10 +68,10 @@ interface FeedbackMessageProps {
 }
 
 const feedbackClasses: Record<NonNullable<FeedbackMessageProps['variant']>, string> = {
-  info: 'border-sky-200 bg-sky-50 text-sky-800',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  danger: 'border-red-200 bg-red-50 text-red-800',
+  info: 'border-info-border bg-info-muted text-brand-800',
+  success: 'border-success-border bg-success-muted text-success',
+  warning: 'border-warning-border bg-warning-muted text-warning',
+  danger: 'border-danger-border bg-danger-muted text-danger',
 }
 
 export function FeedbackMessage({ children, variant = 'info', className = '' }: FeedbackMessageProps) {

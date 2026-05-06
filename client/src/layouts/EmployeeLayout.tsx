@@ -38,7 +38,7 @@ export default function EmployeeLayout() {
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(false)}
-                  className="rounded-md p-2 text-muted hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                  className="rounded-md p-2 text-muted hover:bg-neutral-20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
                   aria-label="Close navigation"
                 >
                   <X size={20} />

@@ -3,6 +3,7 @@ import { Download, FileText } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
+import { EmptyState, FeedbackMessage, PageHeader } from '../../components/ui/Page'
 import { formatDate } from '../../utils/dateHelpers'
 import { formatPeso } from '../../utils/taxComputation'
 import { payrollService } from '../../services/payrollService'
@@ -51,31 +52,31 @@ export default function PayslipPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold text-ink">My Payslips</h2>
-        <p className="text-sm text-muted mt-0.5">View and download your payslip history</p>
-      </div>
+      <PageHeader
+        title="My Payslips"
+        subtitle="View and download your payslip history."
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('unable') ? 'danger' : 'info'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* List */}
         <div className="space-y-2">
-          {isLoading && <div className="text-sm text-muted bg-white border border-border rounded-lg px-4 py-3">Loading payslips...</div>}
-          {!isLoading && payslips.length === 0 && <div className="text-sm text-muted bg-white border border-border rounded-lg px-4 py-3">No payslips available yet.</div>}
+          {isLoading && <div className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-muted">Loading payslips...</div>}
+          {!isLoading && payslips.length === 0 && <EmptyState title="No payslips available yet." />}
           {payslips.map((p) => (
             <button
               key={p.id}
               onClick={() => setSelectedPayslip(p)}
               className={[
-                'w-full text-left px-4 py-3.5 rounded-xl border transition-all',
+                'w-full rounded-lg border px-4 py-3.5 text-left transition-all',
                 selectedPayslip?.id === p.id
                   ? 'border-brand bg-brand-50'
-                  : 'border-border bg-white hover:bg-slate-50',
+                  : 'border-border bg-white hover:bg-neutral-20',
               ].join(' ')}
             >
               <div className="flex items-center justify-between mb-1">
@@ -143,18 +144,18 @@ export default function PayslipPage() {
                   ].map((row) => (
                     <div key={row.label} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
                       <span className="text-muted">{row.label}</span>
-                      <span className="text-red-600 font-medium">-{formatPeso(row.value)}</span>
+                      <span className="font-medium text-danger">-{formatPeso(row.value)}</span>
                     </div>
                   ))}
                   <div className="flex justify-between text-sm font-semibold pt-2">
                     <span className="text-ink">Total Deductions</span>
-                    <span className="text-red-600">-{formatPeso(selectedPayslip.totalDeductions)}</span>
+                    <span className="text-danger">-{formatPeso(selectedPayslip.totalDeductions)}</span>
                   </div>
                 </div>
               </div>
 
               {/* Net Pay */}
-              <div className="bg-brand-50 rounded-xl p-4 flex justify-between items-center">
+              <div className="flex items-center justify-between rounded-lg bg-brand-50 p-4">
                 <span className="text-base font-bold text-ink">NET PAY</span>
                 <span className="text-2xl font-bold text-brand">{formatPeso(selectedPayslip.netPay)}</span>
               </div>

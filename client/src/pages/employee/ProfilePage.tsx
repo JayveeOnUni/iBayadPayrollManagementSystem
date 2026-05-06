@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Avatar from '../../components/ui/Avatar'
+import { FeedbackMessage, PageHeader } from '../../components/ui/Page'
 import { useAuthStore } from '../../store/authStore'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -55,15 +56,15 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-5 max-w-3xl">
-      <div>
-        <h2 className="text-xl font-bold text-ink">My Profile</h2>
-        <p className="text-sm text-muted mt-0.5">View and request updates to your personal information</p>
-      </div>
+      <PageHeader
+        title="My Profile"
+        subtitle="View and request updates to your personal information."
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('failed') || message.toLowerCase().includes('do not match') ? 'danger' : 'info'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       {/* Profile header */}
@@ -73,7 +74,7 @@ export default function ProfilePage() {
           <div>
             <h3 className="text-lg font-bold text-ink">{fullName}</h3>
             <p className="text-sm text-muted">{user?.email}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Employee Portal</p>
+            <p className="mt-0.5 text-xs text-neutral-60">Employee Portal</p>
           </div>
         </div>
       </Card>
@@ -84,18 +85,18 @@ export default function ProfilePage() {
           <User size={18} className="text-muted" />
           <h3 className="text-sm font-semibold text-ink">Personal Information</h3>
         </div>
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+        <p className="mb-4 rounded-lg border border-warning-border bg-warning-muted px-3 py-2 text-xs text-warning">
           Changes to personal information require HR approval. Submit a request and HR will review it.
         </p>
         <form onSubmit={handlePersonal(onSavePersonal)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="First Name" {...registerPersonal('firstName')} />
             <Input label="Last Name" {...registerPersonal('lastName')} />
           </div>
           <Input label="Email Address" type="email" {...registerPersonal('email')} />
           <Input label="Phone Number" type="tel" {...registerPersonal('phone')} />
           <Input label="Address" {...registerPersonal('address')} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="City" {...registerPersonal('city')} />
             <Input label="Province" {...registerPersonal('province')} />
           </div>
@@ -131,7 +132,7 @@ export default function ProfilePage() {
           <CreditCard size={18} className="text-muted" />
           <h3 className="text-sm font-semibold text-ink">Government IDs (View Only)</h3>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {[
             { label: 'SSS Number', value: '33-1234567-8' },
             { label: 'PhilHealth No.', value: '12-345678901-2' },

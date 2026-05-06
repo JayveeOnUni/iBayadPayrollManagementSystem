@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Play, CheckCircle, DollarSign, Plus, ChevronDown } from 'lucide-react'
-import Card from '../../../components/ui/Card'
+import { Play, CheckCircle, DollarSign, Plus, ChevronDown, CalendarDays, Users } from 'lucide-react'
+import Card, { CardHeader, StatCard } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Table, { Pagination } from '../../../components/ui/Table'
 import Badge from '../../../components/ui/Badge'
@@ -12,12 +12,12 @@ import { formatPeso } from '../../../utils/taxComputation'
 import type { PayrollPeriod } from '../../../types'
 import { payrollService } from '../../../services/payrollService'
 
-const statusVariant: Record<string, 'success' | 'info' | 'neutral' | 'warning'> = {
+const statusVariant: Record<string, 'success' | 'info' | 'neutral' | 'warning' | 'danger'> = {
   released: 'success',
   approved: 'success',
   processing: 'info',
   draft: 'neutral',
-  cancelled: 'warning',
+  cancelled: 'danger',
 }
 
 export default function PayrollPage() {
@@ -108,32 +108,37 @@ export default function PayrollPage() {
       )}
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <p className="text-xs text-muted">Current Period</p>
-          <p className="text-base font-bold text-ink mt-1">{currentPeriod?.name ?? 'No period yet'}</p>
-          <p className="text-xs text-muted mt-0.5">
-            {currentPeriod ? `${formatDate(currentPeriod.startDate)} - ${formatDate(currentPeriod.endDate)}` : 'Create a payroll period to begin'}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs text-muted">Employees on Payroll</p>
-          <p className="text-2xl font-bold text-ink mt-1">All active</p>
-          <p className="text-xs text-emerald-600 mt-0.5">Included during processing</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-muted">Estimated Payroll Amount</p>
-          <p className="text-2xl font-bold text-brand mt-1">{formatPeso(0)}</p>
-          <p className="text-xs text-muted mt-0.5">Available after processing records</p>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Current period"
+          value={currentPeriod?.name ?? 'No period yet'}
+          delta={currentPeriod ? `${formatDate(currentPeriod.startDate)} - ${formatDate(currentPeriod.endDate)}` : 'Create a payroll period to begin'}
+          icon={<CalendarDays size={20} />}
+          tone="brand"
+        />
+        <StatCard
+          label="Employees on payroll"
+          value="All active"
+          delta="Included during processing"
+          deltaType="up"
+          icon={<Users size={20} />}
+          tone="success"
+        />
+        <StatCard
+          label="Estimated payroll amount"
+          value={formatPeso(0)}
+          delta="Available after processing records"
+          icon={<DollarSign size={20} />}
+          tone="warning"
+        />
       </div>
 
       {/* Payroll periods table */}
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-ink">Payroll Periods</h3>
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <CardHeader title="Payroll Periods" className="mb-0" />
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 text-sm text-muted border border-border rounded-lg px-3 py-1.5 hover:bg-slate-50">
+            <button type="button" className="flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-sm text-muted hover:bg-neutral-20">
               2026 <ChevronDown size={13} />
             </button>
           </div>

@@ -8,6 +8,7 @@ import Badge from '../../../components/ui/Badge'
 import Avatar from '../../../components/ui/Avatar'
 import Modal from '../../../components/ui/Modal'
 import Input from '../../../components/ui/Input'
+import Select from '../../../components/ui/Select'
 import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 import type { Employee, EmployeeFormData } from '../../../types'
 import { formatDate } from '../../../utils/dateHelpers'
@@ -180,33 +181,32 @@ export default function EmployeeListPage() {
       <Card padding="none">
         {/* Filters */}
         <div className="flex flex-col gap-3 border-b border-border px-5 py-4 md:flex-row md:items-center">
-          <div className="relative w-full md:max-w-sm">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-            <input
+          <div className="w-full md:max-w-sm">
+            <Input
               type="text"
               placeholder="Search employees..."
               value={search}
+              leftAddon={<Search size={15} />}
               onChange={(e) => {
                 setSearch(e.target.value)
                 setPage(1)
               }}
-              className="min-h-10 w-full rounded-md border border-border py-2 pl-9 pr-4 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
           </div>
-          <select
+          <Select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value)
               setPage(1)
             }}
-            className="min-h-10 rounded-md border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 md:w-48"
+            className="md:w-48"
           >
             <option value="">All statuses</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="resigned">Resigned</option>
             <option value="terminated">Terminated</option>
-          </select>
+          </Select>
         </div>
 
         <Table

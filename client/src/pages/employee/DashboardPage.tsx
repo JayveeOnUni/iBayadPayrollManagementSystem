@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { attendanceService } from '../../services/attendanceService'
 import { dashboardService } from '../../services/dashboardService'
 import type { EmployeeDashboardData } from '../../types'
-import { FeedbackMessage, Page, PageHeader } from '../../components/ui/Page'
+import Card, { CardHeader, StatCard } from '../../components/ui/Card'
+import Table from '../../components/ui/Table'
+import { EmptyState, FeedbackMessage, Page, PageHeader } from '../../components/ui/Page'
 
 interface ProgressBarProps {
   percent: number
@@ -45,14 +47,6 @@ function formatTimeOnly(value?: string | null) {
 
 function hours(value: number) {
   return `${Number(value || 0).toFixed(value % 1 === 0 ? 0 : 1)} hr`
-}
-
-function EmptyState({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="border border-dashed border-border rounded-lg px-4 py-8 text-center text-sm text-muted">
-      {children}
-    </div>
-  )
 }
 
 export default function EmployeeDashboardPage() {
@@ -119,22 +113,22 @@ export default function EmployeeDashboardPage() {
     const totalLeaveAllowance = 15
 
     return [
-      { label: 'Total leave allowance', value: totalLeaveAllowance },
-      { label: 'Total leave taken', value: leave.totalTaken },
-      { label: 'Total leave available', value: Math.max(0, totalLeaveAllowance - leave.totalTaken) },
-      { label: 'Leave request pending', value: leave.pendingRequests },
+      { label: 'Leave allowance', value: totalLeaveAllowance, tone: 'brand' as const },
+      { label: 'Leave taken', value: leave.totalTaken, tone: 'neutral' as const },
+      { label: 'Leave available', value: Math.max(0, totalLeaveAllowance - leave.totalTaken), tone: 'success' as const },
+      { label: 'Pending requests', value: leave.pendingRequests, tone: 'warning' as const },
     ]
   }, [leave])
 
   if (isLoading) {
     return (
       <Page>
-        <div className="h-8 w-40 bg-neutral-20 rounded animate-pulse" />
+        <div className="h-8 w-40 animate-pulse rounded bg-neutral-30" />
         {[1, 2, 3, 4].map((item) => (
-          <div key={item} className="bg-white rounded-lg p-6 space-y-4">
-            <div className="h-4 w-48 bg-neutral-20 rounded animate-pulse" />
-            <div className="h-20 bg-neutral-20 rounded animate-pulse" />
-          </div>
+          <Card key={item} className="space-y-4">
+            <div className="h-4 w-48 animate-pulse rounded bg-neutral-30" />
+            <div className="h-20 animate-pulse rounded bg-neutral-30" />
+          </Card>
         ))}
       </Page>
     )
@@ -159,176 +153,154 @@ export default function EmployeeDashboardPage() {
           </FeedbackMessage>
         )}
 
-        <div className="bg-white rounded-lg px-4 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <p className="text-base font-bold text-ink tracking-tight">
+        <Card>
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div>
+              <p className="text-base font-semibold tracking-tight text-ink">
               Good to see you, {dashboard?.employee.firstName ?? 'Employee'}
-            </p>
-            <p className="text-sm text-muted mt-0.5">
-              {dashboard?.employee.position || 'Position not set'}{dashboard?.employee.department ? `, ${dashboard.employee.department}` : ''}
-            </p>
-            <p className="text-xs text-muted mt-2">Attendance status: {attendance?.status ?? 'Unavailable'}</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-8">
-            <button
-              type="button"
-              disabled={isTimeInDisabled}
-              aria-busy={punchAction === 'in'}
-              aria-label="Time In"
-              onClick={() => punch('in')}
-              className="group flex items-center gap-2 rounded-lg border border-transparent p-2 text-left transition-colors hover:border-success hover:bg-success-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-transparent disabled:hover:bg-transparent"
-            >
-              <div className="w-9 h-9 bg-success-surface rounded flex items-center justify-center">
-                <LogIn size={18} className={punchAction === 'in' ? 'text-success animate-pulse' : 'text-success'} />
-              </div>
-              <div className="flex flex-col gap-px">
-                <span className="text-xs font-medium text-neutral-90 leading-[18px]">{formatTime(attendance?.timeIn)}</span>
-                <span className="text-xs text-muted leading-[18px]">{punchAction === 'in' ? 'Recording time in' : 'Punch in'}</span>
-              </div>
-            </button>
-            <button
-              type="button"
-              disabled={isTimeOutDisabled}
-              aria-busy={punchAction === 'out'}
-              aria-label="Time Out"
-              onClick={() => punch('out')}
-              className="group flex items-center gap-2 rounded-lg border border-transparent p-2 text-left transition-colors hover:border-danger hover:bg-danger-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-transparent disabled:hover:bg-transparent"
-            >
-              <div className="w-9 h-9 bg-danger-surface rounded flex items-center justify-center">
-                <LogOut size={18} className={punchAction === 'out' ? 'text-danger animate-pulse' : 'text-danger'} />
-              </div>
-              <div className="flex flex-col gap-px">
-                <span className="text-xs font-medium text-neutral-90 leading-[18px]">{formatTime(attendance?.timeOut)}</span>
-                <span className="text-xs text-muted leading-[18px]">{punchAction === 'out' ? 'Recording time out' : 'Punch out'}</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg px-4 md:px-8 py-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {leaveStats.length ? leaveStats.map((stat) => (
-            <div key={stat.label} className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-neutral-90">{stat.label}</p>
-              <p className="text-[28px] font-medium text-info leading-9">{stat.value}</p>
+              </p>
+              <p className="mt-0.5 text-sm text-muted">
+                {dashboard?.employee.position || 'Position not set'}{dashboard?.employee.department ? `, ${dashboard.employee.department}` : ''}
+              </p>
+              <p className="mt-2 text-xs text-muted">Attendance status: {attendance?.status ?? 'Unavailable'}</p>
             </div>
-          )) : (
-            <EmptyState>No leave balances are available yet.</EmptyState>
-          )}
-        </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={isTimeInDisabled}
+                aria-busy={punchAction === 'in'}
+                aria-label="Time In"
+                onClick={() => punch('in')}
+                className="group flex min-w-[180px] items-center gap-3 rounded-lg border border-border bg-success-muted px-3 py-2 text-left transition-colors hover:border-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white">
+                  <LogIn size={18} className={punchAction === 'in' ? 'animate-pulse text-success' : 'text-success'} />
+                </div>
+                <div className="flex flex-col gap-px">
+                  <span className="text-xs font-medium leading-[18px] text-neutral-90">{formatTime(attendance?.timeIn)}</span>
+                  <span className="text-xs leading-[18px] text-muted">{punchAction === 'in' ? 'Recording time in' : 'Punch in'}</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                disabled={isTimeOutDisabled}
+                aria-busy={punchAction === 'out'}
+                aria-label="Time Out"
+                onClick={() => punch('out')}
+                className="group flex min-w-[180px] items-center gap-3 rounded-lg border border-border bg-danger-muted px-3 py-2 text-left transition-colors hover:border-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white">
+                  <LogOut size={18} className={punchAction === 'out' ? 'animate-pulse text-danger' : 'text-danger'} />
+                </div>
+                <div className="flex flex-col gap-px">
+                  <span className="text-xs font-medium leading-[18px] text-neutral-90">{formatTime(attendance?.timeOut)}</span>
+                  <span className="text-xs leading-[18px] text-muted">{punchAction === 'out' ? 'Recording time out' : 'Punch out'}</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </Card>
 
-        <div className="bg-white rounded-lg px-4 md:px-8 py-4">
-          <h2 className="text-base font-bold text-ink mb-4">Time Log</h2>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {leaveStats.length ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {leaveStats.map((stat) => (
+              <StatCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                icon={<CalendarClock size={20} />}
+                tone={stat.tone}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No leave balances are available yet." />
+        )}
+
+        <Card>
+          <CardHeader title="Time Log" subtitle="Today and monthly attendance progress." />
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <div className="flex flex-col gap-4">
               <p className="text-base font-medium text-neutral-90">Today</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-surface rounded-lg px-4 py-3 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-neutral-90">{formatTimeOnly(attendance?.scheduledStart)}</p>
-                  <p className="text-xs text-neutral-60">Scheduled in</p>
-                </div>
-                <div className="bg-surface rounded-lg px-4 py-3 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-neutral-90">{formatTimeOnly(attendance?.scheduledEnd)}</p>
-                  <p className="text-xs text-neutral-60">Scheduled out</p>
-                </div>
-                <div className="bg-surface rounded-lg px-4 py-3 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-neutral-90">{hours(attendance?.totalHours ?? 0)}</p>
-                  <p className="text-xs text-neutral-60">Worked today</p>
-                </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                  { label: 'Scheduled in', value: formatTimeOnly(attendance?.scheduledStart) },
+                  { label: 'Scheduled out', value: formatTimeOnly(attendance?.scheduledEnd) },
+                  { label: 'Worked today', value: hours(attendance?.totalHours ?? 0) },
+                ].map((item) => (
+                  <div key={item.label} className="flex flex-col gap-2 rounded-lg bg-surface px-4 py-3">
+                    <p className="text-sm font-medium text-neutral-90">{item.value}</p>
+                    <p className="text-xs text-neutral-60">{item.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="flex flex-col gap-4">
               <p className="text-base font-medium text-neutral-90">This month</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-neutral-60">Expected time</span>
-                    <span className="text-neutral-90">{hours(monthly?.expectedHours ?? 0)}</span>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {[
+                  { label: 'Expected time', value: hours(monthly?.expectedHours ?? 0), percent: 100 },
+                  { label: 'Worked time', value: hours(monthly?.totalHours ?? 0), percent: workedPercent },
+                  { label: 'Shortage time', value: hours(monthly?.shortageHours ?? 0), percent: shortagePercent },
+                  { label: 'Overtime', value: hours(monthly?.overtimeHours ?? 0), percent: overtimePercent },
+                ].map((item) => (
+                  <div key={item.label} className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs font-medium">
+                      <span className="text-neutral-60">{item.label}</span>
+                      <span className="text-neutral-90">{item.value}</span>
+                    </div>
+                    <ProgressBar percent={item.percent} />
                   </div>
-                  <ProgressBar percent={100} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-neutral-60">Worked time</span>
-                    <span className="text-neutral-90">{hours(monthly?.totalHours ?? 0)}</span>
-                  </div>
-                  <ProgressBar percent={workedPercent} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-neutral-60">Shortage time</span>
-                    <span className="text-neutral-90">{hours(monthly?.shortageHours ?? 0)}</span>
-                  </div>
-                  <ProgressBar percent={shortagePercent} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-neutral-60">Overtime</span>
-                    <span className="text-neutral-90">{hours(monthly?.overtimeHours ?? 0)}</span>
-                  </div>
-                  <ProgressBar percent={overtimePercent} />
-                </div>
+                ))}
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg px-4 md:px-8 py-4">
-            <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
-              <CalendarClock size={16} /> Attendance Summary
-            </h2>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Card>
+            <CardHeader
+              title="Attendance Summary"
+              subtitle="This month"
+              className="mb-4"
+            />
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="bg-surface rounded-lg p-3">
-                <p className="text-muted text-xs">Present</p>
-                <p className="text-xl font-semibold text-ink">{monthly?.presentDays ?? 0}</p>
-              </div>
-              <div className="bg-surface rounded-lg p-3">
-                <p className="text-muted text-xs">Late</p>
-                <p className="text-xl font-semibold text-ink">{monthly?.lateDays ?? 0}</p>
-              </div>
-              <div className="bg-surface rounded-lg p-3">
-                <p className="text-muted text-xs">Absent</p>
-                <p className="text-xl font-semibold text-ink">{monthly?.absentDays ?? 0}</p>
-              </div>
-              <div className="bg-surface rounded-lg p-3">
-                <p className="text-muted text-xs">On leave</p>
-                <p className="text-xl font-semibold text-ink">{monthly?.leaveDays ?? 0}</p>
-              </div>
+              {[
+                { label: 'Present', value: monthly?.presentDays ?? 0 },
+                { label: 'Late', value: monthly?.lateDays ?? 0 },
+                { label: 'Absent', value: monthly?.absentDays ?? 0 },
+                { label: 'On leave', value: monthly?.leaveDays ?? 0 },
+              ].map((item) => (
+                <div key={item.label} className="rounded-lg bg-surface p-3">
+                  <p className="text-xs text-muted">{item.label}</p>
+                  <p className="text-xl font-semibold text-ink">{item.value}</p>
+                </div>
+              ))}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg px-4 md:px-8 py-4 xl:col-span-2">
-            <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
-              <Megaphone size={16} /> Announcements
-            </h2>
+          <Card padding="none" className="xl:col-span-2">
+            <div className="px-5 py-4">
+              <CardHeader title="Announcements" subtitle="Active company notices." className="mb-0" />
+            </div>
             {dashboard?.announcements.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[680px]">
-                  <thead>
-                    <tr className="bg-surface">
-                      <th className="text-left p-3 text-xs font-normal text-ink">Title</th>
-                      <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Start date</th>
-                      <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">End date</th>
-                      <th className="text-left p-3 text-xs font-normal text-ink border-l border-border">Message</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboard.announcements.map((row) => (
-                      <tr key={row.id} className="border-t border-border">
-                        <td className="p-3 text-ink text-xs font-medium">{row.title}</td>
-                        <td className="p-3 text-ink text-xs">{row.startDate ? formatDateTime(row.startDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Always active'}</td>
-                        <td className="p-3 text-ink text-xs">{row.endDate ? formatDateTime(row.endDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No end date'}</td>
-                        <td className="p-3 text-ink text-xs">{row.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table
+                data={dashboard.announcements}
+                rowKey={(row) => row.id}
+                columns={[
+                  { key: 'title', header: 'Title', render: (row) => <span className="font-medium">{row.title}</span> },
+                  { key: 'startDate', header: 'Start date', render: (row) => row.startDate ? formatDateTime(row.startDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Always active' },
+                  { key: 'endDate', header: 'End date', render: (row) => row.endDate ? formatDateTime(row.endDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No end date' },
+                  { key: 'message', header: 'Message' },
+                ]}
+              />
             ) : (
-              <EmptyState>No active announcements right now.</EmptyState>
+              <div className="px-5 pb-5">
+                <EmptyState title="No active announcements right now." icon={<Megaphone size={22} />} />
+              </div>
             )}
-          </div>
+          </Card>
         </div>
     </Page>
   )

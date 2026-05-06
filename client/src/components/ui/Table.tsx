@@ -30,12 +30,12 @@ export default function Table<T extends object>({
     <div className={`w-full overflow-x-auto scrollbar-thin ${className}`} aria-busy={isLoading}>
       <table className="min-w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-border bg-slate-50/90">
+          <tr className="border-b border-border bg-neutral-20">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={[
-                  'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted whitespace-nowrap',
+                  'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-70 whitespace-nowrap',
                   col.headerClassName ?? '',
                   col.width ?? '',
                 ].join(' ')}
@@ -51,7 +51,7 @@ export default function Table<T extends object>({
               <tr key={i} className="border-b border-border">
                 {columns.map((col) => (
                   <td key={col.key} className="px-4 py-4">
-                    <div className="h-4 bg-slate-100 rounded animate-pulse w-3/4" />
+                    <div className="h-4 bg-neutral-30 rounded animate-pulse w-3/4" />
                   </td>
                 ))}
               </tr>
@@ -68,7 +68,7 @@ export default function Table<T extends object>({
                 key={rowKey ? rowKey(row, index) : index}
                 className={[
                   'border-b border-border last:border-0',
-                  'hover:bg-slate-50/80 transition-colors duration-100',
+                  'hover:bg-brand-50/45 transition-colors duration-100',
                   onRowClick ? 'cursor-pointer' : '',
                 ].join(' ')}
                 onClick={() => onRowClick?.(row)}
@@ -116,7 +116,8 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
         <button
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="min-h-9 rounded-md border border-border px-3 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-40"
+          type="button"
+          className="min-h-9 rounded-md border border-border bg-white px-3 text-sm hover:bg-neutral-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Previous
         </button>
@@ -124,13 +125,14 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
           const p = i + 1
           return (
             <button
+              type="button"
               key={p}
               onClick={() => onPageChange(p)}
               className={[
-                'w-8 h-8 text-sm rounded-lg',
+                'w-8 h-8 rounded-md text-sm',
                 p === page
                   ? 'bg-brand text-white font-medium'
-                  : 'border border-border hover:bg-slate-50 text-ink',
+                  : 'border border-border bg-white text-ink hover:bg-neutral-20',
               ].join(' ')}
             >
               {p}
@@ -140,7 +142,8 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
         <button
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="min-h-9 rounded-md border border-border px-3 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-40"
+          type="button"
+          className="min-h-9 rounded-md border border-border bg-white px-3 text-sm hover:bg-neutral-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
         </button>

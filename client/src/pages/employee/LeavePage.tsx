@@ -38,6 +38,10 @@ const initialForm: LeaveApplicationFormData = {
   documentTypes: [],
 }
 
+function resultErrorMessage(result: PromiseRejectedResult) {
+  return result.reason instanceof Error ? result.reason.message : 'Unable to load leave records.'
+}
+
 export default function EmployeeLeavePage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeConfig[]>([])
   const [balances, setBalances] = useState<LeaveBalance[]>([])
@@ -52,21 +56,28 @@ export default function EmployeeLeavePage() {
   const selectedCode = selectedType?.code
 
   const loadLeave = async () => {
-    try {
-      setIsLoading(true)
-      const [typeRes, balanceRes, requestRes] = await Promise.all([
-        leaveService.getTypes(),
-        leaveService.getMyBalances(),
-        leaveService.getMyApplications(),
-      ])
-      setLeaveTypes(typeRes.data)
-      setBalances(balanceRes.data)
-      setRequests(requestRes.data)
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Unable to load leave records.')
-    } finally {
-      setIsLoading(false)
+    setIsLoading(true)
+    const [typeResult, balanceResult, requestResult] = await Promise.allSettled([
+      leaveService.getTypes(),
+      leaveService.getMyBalances(),
+      leaveService.getMyApplications(),
+    ])
+
+    if (typeResult.status === 'fulfilled') {
+      setLeaveTypes(typeResult.value.data)
     }
+    if (balanceResult.status === 'fulfilled') {
+      setBalances(balanceResult.value.data)
+    }
+    if (requestResult.status === 'fulfilled') {
+      setRequests(requestResult.value.data)
+    }
+
+    const firstError = [typeResult, balanceResult, requestResult].find((result) => result.status === 'rejected')
+    if (firstError?.status === 'rejected') {
+      setMessage(resultErrorMessage(firstError))
+    }
+    setIsLoading(false)
   }
 
   useEffect(() => {

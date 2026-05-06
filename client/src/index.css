@@ -16,10 +16,11 @@
   body {
     @apply bg-surface text-ink;
     margin: 0;
+    min-width: 320px;
   }
 
   ::selection {
-    @apply bg-brand-100 text-ink;
+    @apply bg-brand-100 text-brand-900;
   }
 
   button,
@@ -28,9 +29,17 @@
   textarea {
     font: inherit;
   }
+
+  :focus-visible {
+    outline-color: theme('colors.brand.500');
+  }
 }
 
 @layer components {
+  .field-base {
+    @apply min-h-10 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-ink shadow-sm transition-colors duration-150 placeholder:text-neutral-60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:cursor-not-allowed disabled:bg-neutral-20 disabled:text-muted;
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: #CBD5E1 transparent;

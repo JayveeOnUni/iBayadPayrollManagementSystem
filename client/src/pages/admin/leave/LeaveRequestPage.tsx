@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
+import Select from '../../../components/ui/Select'
+import Textarea from '../../../components/ui/Textarea'
+import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 import { employeeService } from '../../../services/employeeService'
 import { leaveService } from '../../../services/leaveService'
 import type { Employee } from '../../../types'
@@ -73,28 +76,26 @@ export default function LeaveRequestPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold text-ink">Submit Leave Request</h2>
-        <p className="text-sm text-muted mt-0.5">File a leave request on behalf of an employee or yourself</p>
-      </div>
+      <PageHeader
+        title="Submit Leave Request"
+        subtitle="File a leave request on behalf of an employee or yourself."
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('unable') ? 'danger' : 'success'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       <div className="max-w-2xl">
         <Card>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Employee select */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">
-                Employee <span className="text-red-500">*</span>
-              </label>
-              <select
+            <Select
+              label="Employee"
+              required
+              error={errors.employeeId?.message}
                 {...register('employeeId')}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white"
               >
                 <option value="">Select employee...</option>
                 {employees.map((employee) => (
@@ -102,18 +103,14 @@ export default function LeaveRequestPage() {
                     {employee.firstName} {employee.lastName} ({employee.employeeNumber})
                   </option>
                 ))}
-              </select>
-              {errors.employeeId && <p className="text-xs text-red-600">{errors.employeeId.message}</p>}
-            </div>
+            </Select>
 
             {/* Leave type */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">
-                Leave Type <span className="text-red-500">*</span>
-              </label>
-              <select
+            <Select
+              label="Leave Type"
+              required
+              error={errors.leaveTypeId?.message}
                 {...register('leaveTypeId')}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white"
               >
                 <option value="">Select leave type...</option>
                 {leaveTypes.map((leaveType) => (
@@ -121,12 +118,10 @@ export default function LeaveRequestPage() {
                     {leaveType.name}
                   </option>
                 ))}
-              </select>
-              {errors.leaveTypeId && <p className="text-xs text-red-600">{errors.leaveTypeId.message}</p>}
-            </div>
+            </Select>
 
             {/* Date range */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
                 label="Start Date"
                 type="date"
@@ -145,11 +140,9 @@ export default function LeaveRequestPage() {
 
             {/* Reason */}
             {(selectedCode === 'SICK' || selectedCode === 'EMERGENCY') && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input label="Notice Sent At" type="datetime-local" {...register('notificationAt')} error={errors.notificationAt?.message} />
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-ink">Notice Method</label>
-                  <select {...register('notificationMethod')} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white">
+                <Select label="Notice Method" {...register('notificationMethod')}>
                     <option value="email">Email</option>
                     <option value="sms">SMS</option>
                     <option value="viber">Viber</option>
@@ -157,38 +150,31 @@ export default function LeaveRequestPage() {
                     <option value="whatsapp">WhatsApp</option>
                     <option value="messenger">Facebook Messenger</option>
                     <option value="call">Call</option>
-                  </select>
-                </div>
+                </Select>
               </div>
             )}
 
             {selectedCode === 'EMERGENCY' && (
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-ink">Emergency Reason</label>
-                <select {...register('emergencyReasonCategory')} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white">
+              <Select label="Emergency Reason" {...register('emergencyReasonCategory')}>
                   <option value="">Select category...</option>
                   <option value="family_accident_hospitalization_serious_sickness">Family accident, hospitalization, or serious sickness</option>
                   <option value="natural_calamity">Natural calamity or fortuitous event</option>
                   <option value="extraordinary_situation">Fire, robbery, kidnapping, eviction, or similar</option>
-                </select>
-              </div>
+              </Select>
             )}
 
             {selectedCode === 'BEREAVEMENT' && (
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-ink">Relationship</label>
-                <select {...register('relationshipToDeceased')} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white">
+              <Select label="Relationship" {...register('relationshipToDeceased')}>
                   <option value="">Select relationship...</option>
                   <option value="spouse">Spouse</option>
                   <option value="parents">Parents</option>
                   <option value="siblings">Siblings</option>
                   <option value="parents_in_law">Parents-in-law</option>
-                </select>
-              </div>
+              </Select>
             )}
 
             {(selectedCode === 'MATERNITY' || selectedCode === 'PATERNITY') && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input label="Delivery Date" type="date" {...register('deliveryDate')} />
                 <Input
                   label={selectedCode === 'MATERNITY' ? 'Delivery Count' : 'Spouse Delivery Count'}
@@ -200,29 +186,21 @@ export default function LeaveRequestPage() {
               </div>
             )}
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">
-                Reason <span className="text-red-500">*</span>
-              </label>
-              <textarea
+            <Textarea
+              label="Reason"
+              required
                 {...register('reason')}
                 rows={4}
                 placeholder="Please provide the reason for this leave..."
-                className={[
-                  'w-full px-3 py-2 text-sm border rounded-lg resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand',
-                  errors.reason ? 'border-red-400' : 'border-border',
-                ].join(' ')}
+              error={errors.reason?.message}
               />
-              {errors.reason && <p className="text-xs text-red-600">{errors.reason.message}</p>}
-            </div>
 
             <label className="flex items-center gap-2 text-sm text-ink">
-              <input type="checkbox" {...register('acknowledgedPolicy')} className="h-4 w-4 rounded border-border" />
+              <input type="checkbox" {...register('acknowledgedPolicy')} className="h-4 w-4 rounded border-border text-brand focus:ring-brand-200" />
               Employee acknowledged policy requirements
             </label>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-wrap gap-3 pt-2">
               <Button type="submit" size="md" isLoading={isSubmitting}>Submit Request</Button>
               <Button type="button" variant="outline" onClick={() => reset()} disabled={isSubmitting}>Reset</Button>
             </div>

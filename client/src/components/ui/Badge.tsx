@@ -17,21 +17,21 @@ interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-brand-50 text-brand-600 ring-brand-200',
-  success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  warning: 'bg-amber-50 text-amber-700 ring-amber-200',
-  danger:  'bg-red-50 text-red-700 ring-red-200',
-  info:    'bg-sky-50 text-sky-700 ring-sky-200',
-  neutral: 'bg-slate-100 text-slate-600 ring-slate-200',
+  default: 'bg-brand-50 text-brand-700 ring-brand-200',
+  success: 'bg-success-muted text-success ring-success-border',
+  warning: 'bg-warning-muted text-warning ring-warning-border',
+  danger:  'bg-danger-muted text-danger ring-danger-border',
+  info:    'bg-info-muted text-brand-700 ring-info-border',
+  neutral: 'bg-neutral-30 text-neutral-80 ring-neutral-40',
 }
 
 const dotClasses: Record<BadgeVariant, string> = {
   default: 'bg-brand',
-  success: 'bg-emerald-500',
-  warning: 'bg-amber-500',
-  danger:  'bg-red-500',
-  info:    'bg-sky-500',
-  neutral: 'bg-slate-400',
+  success: 'bg-success',
+  warning: 'bg-secondary',
+  danger:  'bg-danger',
+  info:    'bg-info',
+  neutral: 'bg-neutral-60',
 }
 
 const sizeClasses: Record<BadgeSize, string> = {
@@ -49,7 +49,7 @@ export default function Badge({
   return (
     <span
       className={[
-        'inline-flex items-center gap-1.5 font-medium rounded-full ring-1',
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full font-medium capitalize ring-1',
         variantClasses[variant],
         sizeClasses[size],
         className,

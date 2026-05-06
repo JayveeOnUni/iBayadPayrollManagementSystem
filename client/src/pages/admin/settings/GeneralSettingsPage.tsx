@@ -4,6 +4,7 @@ import { Building2, Save } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
+import { FeedbackMessage, PageHeader } from '../../../components/ui/Page'
 
 interface GeneralSettingsForm {
   companyName: string
@@ -44,12 +45,12 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="space-y-5 max-w-3xl">
-      <div>
-        <h2 className="text-xl font-bold text-ink">General Settings</h2>
-        <p className="text-sm text-muted mt-0.5">Configure company information and government IDs</p>
-      </div>
+      <PageHeader
+        title="General Settings"
+        subtitle="Configure company information and government IDs."
+      />
 
-      {message && <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">{message}</div>}
+      {message && <FeedbackMessage variant="success">{message}</FeedbackMessage>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Card>

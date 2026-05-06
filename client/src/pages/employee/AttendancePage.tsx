@@ -4,6 +4,9 @@ import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
+import Input from '../../components/ui/Input'
+import Textarea from '../../components/ui/Textarea'
+import { FeedbackMessage, PageHeader } from '../../components/ui/Page'
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, formatTime } from '../../utils/dateHelpers'
 import { attendanceService } from '../../services/attendanceService'
 import type { AttendanceRecord } from '../../types'
@@ -76,28 +79,29 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-ink">My Attendance</h2>
-          <p className="text-sm text-muted mt-0.5">Track your daily time in and time out</p>
-        </div>
-        <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsModalOpen(true)}>
-          Request Correction
-        </Button>
-      </div>
+      <PageHeader
+        title="My Attendance"
+        subtitle="Track your daily time in and time out."
+        actions={
+          <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsModalOpen(true)}>
+            Request Correction
+          </Button>
+        }
+      />
 
       {message && (
-        <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">
+        <FeedbackMessage variant={message.toLowerCase().includes('unable') ? 'danger' : 'info'}>
           {message}
-        </div>
+        </FeedbackMessage>
       )}
 
       {/* Month nav */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <button
+            type="button"
             onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-            className="p-2 rounded-lg hover:bg-slate-100 text-muted"
+            className="rounded-md p-2 text-muted hover:bg-neutral-20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
           >
             <ChevronLeft size={18} />
           </button>
@@ -105,8 +109,9 @@ export default function AttendancePage() {
             {format(currentMonth, 'MMMM yyyy')}
           </p>
           <button
+            type="button"
             onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-            className="p-2 rounded-lg hover:bg-slate-100 text-muted"
+            className="rounded-md p-2 text-muted hover:bg-neutral-20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
           >
             <ChevronRight size={18} />
           </button>
@@ -115,11 +120,11 @@ export default function AttendancePage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Days Present', value: present, color: 'text-emerald-600' },
-            { label: 'Days Absent', value: absent, color: 'text-red-600' },
-            { label: 'Late Days', value: late, color: 'text-amber-600' },
+            { label: 'Days Present', value: present, color: 'text-success' },
+            { label: 'Days Absent', value: absent, color: 'text-danger' },
+            { label: 'Late Days', value: late, color: 'text-warning' },
           ].map((s) => (
-            <div key={s.label} className="text-center bg-slate-50 rounded-xl p-3">
+            <div key={s.label} className="rounded-lg bg-neutral-20 p-3 text-center">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted mt-1">{s.label}</p>
             </div>
@@ -174,45 +179,33 @@ export default function AttendancePage() {
         }
       >
         <div className="space-y-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-ink">Date</label>
-            <input
-              type="date"
-              value={requestForm.date}
-              onChange={(e) => setRequestForm((f) => ({ ...f, date: e.target.value }))}
-              className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200"
-            />
-          </div>
+          <Input
+            label="Date"
+            type="date"
+            value={requestForm.date}
+            onChange={(e) => setRequestForm((f) => ({ ...f, date: e.target.value }))}
+          />
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">Correct Time In</label>
-              <input
-                type="time"
-                value={requestForm.requestedTimeIn}
-                onChange={(e) => setRequestForm((f) => ({ ...f, requestedTimeIn: e.target.value }))}
-                className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">Correct Time Out</label>
-              <input
-                type="time"
-                value={requestForm.requestedTimeOut}
-                onChange={(e) => setRequestForm((f) => ({ ...f, requestedTimeOut: e.target.value }))}
-                className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-ink">Reason</label>
-            <textarea
-              rows={3}
-              value={requestForm.reason}
-              onChange={(e) => setRequestForm((f) => ({ ...f, reason: e.target.value }))}
-              placeholder="Please explain why you need this correction..."
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none"
+            <Input
+              label="Correct Time In"
+              type="time"
+              value={requestForm.requestedTimeIn}
+              onChange={(e) => setRequestForm((f) => ({ ...f, requestedTimeIn: e.target.value }))}
+            />
+            <Input
+              label="Correct Time Out"
+              type="time"
+              value={requestForm.requestedTimeOut}
+              onChange={(e) => setRequestForm((f) => ({ ...f, requestedTimeOut: e.target.value }))}
             />
           </div>
+          <Textarea
+            label="Reason"
+            rows={3}
+            value={requestForm.reason}
+            onChange={(e) => setRequestForm((f) => ({ ...f, reason: e.target.value }))}
+            placeholder="Please explain why you need this correction..."
+          />
         </div>
       </Modal>
     </div>

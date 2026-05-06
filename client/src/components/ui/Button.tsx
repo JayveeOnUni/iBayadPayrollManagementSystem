@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { Loader2 } from 'lucide-react'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
+type Variant = 'primary' | 'secondary' | 'accent' | 'success' | 'ghost' | 'danger' | 'outline'
 type Size = 'xs' | 'sm' | 'md' | 'lg'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,15 +15,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    'bg-brand text-white hover:bg-brand-600 active:bg-brand-700 focus-visible:ring-brand-300 disabled:bg-brand-200',
+    'bg-brand text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 focus-visible:ring-brand-300 disabled:bg-brand-200',
   secondary:
-    'bg-slate-100 text-ink hover:bg-slate-200 active:bg-slate-300 focus-visible:ring-slate-300 disabled:bg-slate-50',
+    'bg-neutral-30 text-ink hover:bg-neutral-40 active:bg-neutral-50 focus-visible:ring-neutral-50 disabled:bg-neutral-20',
+  accent:
+    'bg-secondary text-neutral-100 shadow-sm hover:bg-secondary-hover active:bg-secondary-700 focus-visible:ring-secondary-300 disabled:bg-secondary-100',
+  success:
+    'bg-success text-white shadow-sm hover:bg-success-hover active:bg-success-hover focus-visible:ring-success-border disabled:bg-success-surface',
   ghost:
-    'bg-transparent text-ink hover:bg-slate-100 active:bg-slate-200 focus-visible:ring-slate-300',
+    'bg-transparent text-neutral-80 hover:bg-neutral-30 hover:text-ink active:bg-neutral-40 focus-visible:ring-neutral-50',
   danger:
-    'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-300 disabled:bg-red-200',
+    'bg-danger text-white shadow-sm hover:bg-danger-hover active:bg-danger-hover focus-visible:ring-danger-border disabled:bg-danger-surface',
   outline:
-    'border border-border bg-white text-ink hover:bg-slate-50 active:bg-slate-100 focus-visible:ring-slate-300',
+    'border border-border bg-white text-ink shadow-sm hover:bg-neutral-20 active:bg-neutral-30 focus-visible:ring-brand-200',
 }
 
 const sizeClasses: Record<Size, string> = {
@@ -56,7 +60,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         className={[
           'inline-flex items-center justify-center rounded-md font-medium leading-none',
-          'transition-colors duration-150',
+          'transition-colors duration-150 whitespace-nowrap',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
           'disabled:opacity-60 disabled:cursor-not-allowed',
           variantClasses[variant],

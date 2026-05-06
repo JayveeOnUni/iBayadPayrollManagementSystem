@@ -8,18 +8,16 @@ import Table from '../../components/ui/Table'
 import { EmptyState, Page, PageHeader } from '../../components/ui/Page'
 
 const announcements = [
-  { title: 'Scrum Master', startDate: 'Dec 4, 2019 21:42', endDate: 'Dec 7, 2019 23:26', description: 'Corrected item alignment' },
-  { title: 'Software Tester', startDate: 'Dec 30, 2019 05:18', endDate: 'Feb 2, 2019 19:28', description: 'Embedded analytic scripts' },
-  { title: 'Software Developer', startDate: 'Dec 30, 2019 07:52', endDate: 'Dec 4, 2019 21:42', description: 'High resolution imagery option' },
-  { title: 'UI/UX Designer', startDate: 'Dec 7, 2019 23:26', endDate: 'Feb 2, 2019 19:28', description: 'Enhanced UX for cart quantity updates' },
-  { title: 'Ethical Hacker', startDate: 'Mar 20, 2019 23:14', endDate: 'Dec 4, 2019 21:42', description: 'Cart history fixes' },
+  { title: 'Payroll cutoff reminder', startDate: 'May 1, 2026', endDate: 'May 15, 2026', description: 'Submit approved attendance changes before payroll processing.' },
+  { title: 'Leave planning window', startDate: 'May 6, 2026', endDate: 'May 31, 2026', description: 'Review pending leave requests before month-end reporting.' },
+  { title: 'Holiday pay review', startDate: 'May 10, 2026', endDate: 'May 20, 2026', description: 'Confirm holiday eligibility for affected payroll periods.' },
 ]
 
 const leaveStats = [
-  { label: 'Total leave allowance', value: 15 },
-  { label: 'Total leave taken', value: 5 },
-  { label: 'Total leave available', value: 10 },
-  { label: 'Leave request pending', value: 0 },
+  { label: 'Leave allowance', value: 15, tone: 'brand' as const },
+  { label: 'Leave taken', value: 5, tone: 'neutral' as const },
+  { label: 'Leave available', value: 10, tone: 'success' as const },
+  { label: 'Pending requests', value: 0, tone: 'warning' as const },
 ]
 
 export default function AdminDashboardPage() {
@@ -53,37 +51,37 @@ export default function AdminDashboardPage() {
         }
       />
 
-      <Card>
+      <Card className="border-brand-100 bg-gradient-to-r from-brand-900 to-brand-700 text-white">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-lg font-semibold text-ink">Good to see you, {firstName}</p>
-            <p className="mt-1 text-sm text-muted">{today}</p>
+            <p className="text-lg font-semibold">Good to see you, {firstName}</p>
+            <p className="mt-1 text-sm text-brand-100">{today}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => navigate('/admin/attendance/daily')}
-              className="flex min-w-[180px] items-center gap-3 rounded-lg border border-border bg-success-surface/50 px-3 py-2 text-left transition-colors hover:border-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success"
+              className="flex min-w-[180px] items-center gap-3 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-success-surface">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white">
                 <LogIn size={18} className="text-success" />
               </div>
               <div>
-                <p className="text-sm font-medium text-ink">Time In</p>
-                <p className="text-xs text-muted">Review daily logs</p>
+                <p className="text-sm font-medium text-white">Time In</p>
+                <p className="text-xs text-brand-100">Review daily logs</p>
               </div>
             </button>
             <button
               type="button"
               onClick={() => navigate('/admin/attendance/daily')}
-              className="flex min-w-[180px] items-center gap-3 rounded-lg border border-border bg-danger-surface/50 px-3 py-2 text-left transition-colors hover:border-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+              className="flex min-w-[180px] items-center gap-3 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-danger-surface">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white">
                 <LogOut size={18} className="text-danger" />
               </div>
               <div>
-                <p className="text-sm font-medium text-ink">Time Out</p>
-                <p className="text-xs text-muted">Check incomplete punches</p>
+                <p className="text-sm font-medium text-white">Time Out</p>
+                <p className="text-xs text-brand-100">Check incomplete punches</p>
               </div>
             </button>
           </div>
@@ -96,8 +94,8 @@ export default function AdminDashboardPage() {
             key={stat.label}
             label={stat.label}
             value={stat.value}
-            icon={<CalendarCheck size={20} className="text-info" />}
-            iconBg="bg-sky-50"
+            icon={<CalendarCheck size={20} />}
+            tone={stat.tone}
           />
         ))}
       </div>

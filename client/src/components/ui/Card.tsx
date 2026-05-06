@@ -58,7 +58,16 @@ interface StatCardProps {
   deltaType?: 'up' | 'down' | 'neutral'
   icon?: React.ReactNode
   iconBg?: string
+  tone?: 'brand' | 'success' | 'warning' | 'danger' | 'neutral'
   className?: string
+}
+
+const statToneClasses: Record<NonNullable<StatCardProps['tone']>, { rail: string; icon: string; value: string }> = {
+  brand: { rail: 'bg-brand', icon: 'bg-brand-50 text-brand', value: 'text-ink' },
+  success: { rail: 'bg-success', icon: 'bg-success-muted text-success', value: 'text-ink' },
+  warning: { rail: 'bg-secondary', icon: 'bg-warning-muted text-warning', value: 'text-ink' },
+  danger: { rail: 'bg-danger', icon: 'bg-danger-muted text-danger', value: 'text-ink' },
+  neutral: { rail: 'bg-neutral-50', icon: 'bg-neutral-30 text-neutral-80', value: 'text-ink' },
 }
 
 export function StatCard({
@@ -67,24 +76,27 @@ export function StatCard({
   delta,
   deltaType = 'neutral',
   icon,
-  iconBg = 'bg-brand-50',
+  iconBg,
+  tone = 'brand',
   className = '',
 }: StatCardProps) {
   const deltaColor =
-    deltaType === 'up' ? 'text-emerald-600' : deltaType === 'down' ? 'text-red-600' : 'text-muted'
+    deltaType === 'up' ? 'text-success' : deltaType === 'down' ? 'text-danger' : 'text-muted'
+  const toneClasses = statToneClasses[tone]
 
   return (
-    <Card className={className}>
+    <Card className={`relative overflow-hidden ${className}`}>
+      <div className={`absolute inset-y-0 left-0 w-1 ${toneClasses.rail}`} aria-hidden="true" />
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-muted">{label}</p>
-          <p className="mt-1 text-2xl font-semibold leading-tight text-ink">{value}</p>
+          <p className={`mt-1 break-words text-2xl font-semibold leading-tight ${toneClasses.value}`}>{value}</p>
           {delta && (
             <p className={`text-xs mt-1 ${deltaColor}`}>{delta}</p>
           )}
         </div>
         {icon && (
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBg}`}>
+          <div className={`w-11 h-11 rounded-md flex items-center justify-center ${iconBg ?? toneClasses.icon}`}>
             {icon}
           </div>
         )}

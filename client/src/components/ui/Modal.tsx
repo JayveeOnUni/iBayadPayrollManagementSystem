@@ -43,13 +43,24 @@ export default function Modal({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-neutral-100/45 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -57,7 +68,7 @@ export default function Modal({
       {/* Panel */}
       <div
         className={[
-          'relative w-full bg-white rounded-2xl shadow-2xl',
+          'relative w-full rounded-lg bg-white shadow-elevated ring-1 ring-border',
           'flex flex-col max-h-[90vh]',
           sizeClasses[size],
         ].join(' ')}
@@ -67,7 +78,7 @@ export default function Modal({
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between p-5 border-b border-border">
+          <div className="flex items-start justify-between border-b border-border px-5 py-4">
             <div>
               {title && (
                 <h2 id="modal-title" className="text-base font-semibold text-ink">
@@ -81,7 +92,7 @@ export default function Modal({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="ml-4 p-1.5 rounded-lg text-muted hover:text-ink hover:bg-slate-100 transition-colors"
+                className="ml-4 rounded-md p-1.5 text-muted transition-colors hover:bg-neutral-20 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
                 aria-label="Close modal"
               >
                 <X size={18} />
@@ -95,7 +106,7 @@ export default function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-2 p-5 border-t border-border">
+          <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
             {footer}
           </div>
         )}
