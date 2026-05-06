@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle, XCircle, Search } from 'lucide-react'
+import { AlertTriangle, CheckCircle, DollarSign, Search, XCircle } from 'lucide-react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Table, { Pagination } from '../../../components/ui/Table'
@@ -13,6 +13,8 @@ const leaveTypeLabel: Record<string, string> = {
   vacation: 'Vacation Leave',
   sick: 'Sick Leave',
   emergency: 'Emergency Leave',
+  bereavement: 'Bereavement Leave',
+  non_paid: 'Non-Paid Leave',
   maternity: 'Maternity Leave',
   paternity: 'Paternity Leave',
 }
@@ -147,6 +149,29 @@ export default function LeaveStatusPage() {
                 <div>
                   <p className="text-sm">{formatDate(row.startDate)} – {formatDate(row.endDate)}</p>
                   <p className="text-xs text-muted">{row.totalDays} day{row.totalDays !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-muted">
+                    SL {row.deductedSickDays ?? 0} · VL {row.deductedVacationDays ?? 0} · Unpaid {row.unpaidDays ?? 0}
+                  </p>
+                </div>
+              ),
+            },
+            {
+              key: 'impact',
+              header: 'Impact',
+              render: (row) => (
+                <div className="space-y-1">
+                  {Number(row.unpaidDays ?? 0) > 0 && (
+                    <span className="inline-flex items-center gap-1 text-xs text-amber-700">
+                      <DollarSign size={12} />
+                      payroll deduction
+                    </span>
+                  )}
+                  {row.documents && row.documents.length === 0 && (
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                      <AlertTriangle size={12} />
+                      no documents
+                    </span>
+                  )}
                 </div>
               ),
             },

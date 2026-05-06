@@ -6,6 +6,7 @@ import {
   updateEmployee,
   deactivateEmployee,
   activateEmployee,
+  resendEmployeeActivation,
 } from '../controllers/employeeController'
 import { getEmployeeDashboard } from '../controllers/employeeDashboardController'
 import { authenticate, employeeSelfService, requireRole } from '../middleware/auth'
@@ -37,6 +38,7 @@ router.get('/', requireRole('admin'), listEmployees)
 router.post('/', requireRole('admin'), createEmployee)
 router.get('/:id', requireRole('admin'), getEmployee)
 router.put('/:id', requireRole('admin'), updateEmployee)
+router.post('/:id/resend-activation', requireRole('admin'), resendEmployeeActivation)
 router.put('/:id/activate', requireRole('admin'), activateEmployee)
 router.delete('/:id', requireRole('admin'), deactivateEmployee)
 

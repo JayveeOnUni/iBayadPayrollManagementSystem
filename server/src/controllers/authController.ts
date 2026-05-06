@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
 import pool from '../utils/db'
 import { asyncHandler, createError } from '../middleware/errorHandler'
@@ -31,13 +32,20 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     `SELECT u.*, e.id AS employee_id, e.first_name, e.last_name
      FROM users u
      LEFT JOIN employees e ON u.employee_id = e.id
-     WHERE u.email = $1 AND u.is_active = true`,
+     WHERE u.email = $1`,
     [email]
   )
 
   const user = result.rows[0]
   if (!user) {
     throw createError('Invalid email or password', 401)
+  }
+
+  if (!user.password_hash && user.activation_token_hash) {
+    throw createError('Activate your account before signing in', 403)
+  }
+  if (!user.is_active || !user.password_hash) {
+    throw createError('Account is inactive', 403)
   }
 
   const isMatch = await bcrypt.compare(password, user.password_hash)
@@ -78,6 +86,80 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       tokens: { accessToken, refreshToken },
     },
   })
+})
+
+export const verifyActivationToken = asyncHandler(async (req: Request, res: Response) => {
+  const { token } = req.body
+  if (!token) throw createError('Activation token is required', 400)
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+  const result = await pool.query(
+    `SELECT u.id, u.email, u.password_hash, u.activated_at,
+            u.activation_token_expires_at,
+            e.first_name, e.last_name
+     FROM users u
+     LEFT JOIN employees e ON e.id = u.employee_id
+     WHERE u.activation_token_hash = $1`,
+    [tokenHash]
+  )
+
+  const user = result.rows[0]
+  if (!user) throw createError('Activation link is invalid or has already been used', 400)
+  if (user.activated_at || user.password_hash) throw createError('Account is already activated', 400)
+
+  const expiresAt = user.activation_token_expires_at
+  if (!expiresAt || new Date(expiresAt).getTime() <= Date.now()) {
+    throw createError('Activation link has expired', 400)
+  }
+
+  res.json({
+    success: true,
+    data: {
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      expiresAt,
+    },
+  })
+})
+
+export const activateAccount = asyncHandler(async (req: Request, res: Response) => {
+  const { token, password } = req.body
+  if (!token || !password) throw createError('Activation token and password are required', 400)
+  if (String(password).length < 8) throw createError('Password must be at least 8 characters', 400)
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+  const result = await pool.query(
+    `SELECT id, activation_token_expires_at, activated_at, password_hash
+     FROM users
+     WHERE activation_token_hash = $1`,
+    [tokenHash]
+  )
+
+  const user = result.rows[0]
+  if (!user) throw createError('Activation link is invalid or has already been used', 400)
+  if (user.activated_at || user.password_hash) throw createError('Account is already activated', 400)
+
+  const expiresAt = user.activation_token_expires_at
+  if (!expiresAt || new Date(expiresAt).getTime() <= Date.now()) {
+    throw createError('Activation link has expired', 400)
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12)
+  await pool.query(
+    `UPDATE users
+     SET password_hash = $1,
+         is_active = true,
+         activated_at = NOW(),
+         activation_token_hash = NULL,
+         activation_token_expires_at = NULL,
+         refresh_token_hash = NULL,
+         updated_at = NOW()
+     WHERE id = $2`,
+    [passwordHash, user.id]
+  )
+
+  res.json({ success: true, message: 'Account activated successfully. You can now sign in.' })
 })
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {

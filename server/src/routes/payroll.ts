@@ -1,5 +1,9 @@
 import { Router } from 'express'
 import {
+  applyPayrollPeriodLeaveAdjustments,
+  getPayrollPeriodLeaveImpacts,
+} from '../controllers/leaveController'
+import {
   getPayrollPeriods,
   getPayrollPeriodById,
   createPayrollPeriod,
@@ -25,6 +29,8 @@ router.get('/compute-tax', computeEmployeeTax)
 router.get('/periods', requireRole('admin'), getPayrollPeriods)
 router.post('/periods', requireRole('admin'), createPayrollPeriod)
 router.get('/periods/:id', requireRole('admin'), getPayrollPeriodById)
+router.get('/periods/:periodId/leave-impacts', requireRole('admin'), getPayrollPeriodLeaveImpacts)
+router.post('/periods/:periodId/apply-leave-adjustments', requireRole('admin'), applyPayrollPeriodLeaveAdjustments)
 router.get('/records', requireRole('admin'), getPayrollRecords)
 router.get('/records/:id/payslip', downloadPayslip)
 router.post('/process', requireRole('admin'), processPayroll)

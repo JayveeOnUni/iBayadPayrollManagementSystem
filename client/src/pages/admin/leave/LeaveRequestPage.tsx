@@ -15,13 +15,22 @@ const leaveRequestSchema = z.object({
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
   reason: z.string().min(5, 'Please provide a reason (at least 5 characters)'),
+  emergencyReasonCategory: z.string().optional(),
+  notificationAt: z.string().optional(),
+  notificationMethod: z.string().optional(),
+  deliveryDate: z.string().optional(),
+  deliveryCount: z.coerce.number().optional(),
+  spouseDeliveryCount: z.coerce.number().optional(),
+  relationshipToDeceased: z.string().optional(),
+  acknowledgedPolicy: z.boolean().optional(),
 })
 
 type FormValues = z.infer<typeof leaveRequestSchema>
 
 export default function LeaveRequestPage() {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<FormValues>({
     resolver: zodResolver(leaveRequestSchema),
+    defaultValues: { notificationMethod: 'email', acknowledgedPolicy: true },
   })
   const [employees, setEmployees] = useState<Employee[]>([])
   const [leaveTypes, setLeaveTypes] = useState<Array<{ id: string; name: string; code: string }>>([])
@@ -44,6 +53,9 @@ export default function LeaveRequestPage() {
 
     loadOptions()
   }, [])
+
+  const selectedType = leaveTypes.find((leaveType) => leaveType.id === watch('leaveTypeId'))
+  const selectedCode = selectedType?.code
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -132,6 +144,62 @@ export default function LeaveRequestPage() {
             </div>
 
             {/* Reason */}
+            {(selectedCode === 'SICK' || selectedCode === 'EMERGENCY') && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Notice Sent At" type="datetime-local" {...register('notificationAt')} error={errors.notificationAt?.message} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-ink">Notice Method</label>
+                  <select {...register('notificationMethod')} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white">
+                    <option value="email">Email</option>
+                    <option value="sms">SMS</option>
+                    <option value="viber">Viber</option>
+                    <option value="skype">Skype</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="messenger">Facebook Messenger</option>
+                    <option value="call">Call</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {selectedCode === 'EMERGENCY' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-ink">Emergency Reason</label>
+                <select {...register('emergencyReasonCategory')} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white">
+                  <option value="">Select category...</option>
+                  <option value="family_accident_hospitalization_serious_sickness">Family accident, hospitalization, or serious sickness</option>
+                  <option value="natural_calamity">Natural calamity or fortuitous event</option>
+                  <option value="extraordinary_situation">Fire, robbery, kidnapping, eviction, or similar</option>
+                </select>
+              </div>
+            )}
+
+            {selectedCode === 'BEREAVEMENT' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-ink">Relationship</label>
+                <select {...register('relationshipToDeceased')} className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white">
+                  <option value="">Select relationship...</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="parents">Parents</option>
+                  <option value="siblings">Siblings</option>
+                  <option value="parents_in_law">Parents-in-law</option>
+                </select>
+              </div>
+            )}
+
+            {(selectedCode === 'MATERNITY' || selectedCode === 'PATERNITY') && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Delivery Date" type="date" {...register('deliveryDate')} />
+                <Input
+                  label={selectedCode === 'MATERNITY' ? 'Delivery Count' : 'Spouse Delivery Count'}
+                  type="number"
+                  min={1}
+                  max={4}
+                  {...register(selectedCode === 'MATERNITY' ? 'deliveryCount' : 'spouseDeliveryCount')}
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-ink">
                 Reason <span className="text-red-500">*</span>
@@ -148,6 +216,11 @@ export default function LeaveRequestPage() {
               />
               {errors.reason && <p className="text-xs text-red-600">{errors.reason.message}</p>}
             </div>
+
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input type="checkbox" {...register('acknowledgedPolicy')} className="h-4 w-4 rounded border-border" />
+              Employee acknowledged policy requirements
+            </label>
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" size="md" isLoading={isSubmitting}>Submit Request</Button>

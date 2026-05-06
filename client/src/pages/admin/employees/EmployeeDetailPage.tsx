@@ -37,7 +37,9 @@ export default function EmployeeDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSendingActivation, setIsSendingActivation] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ phone: '', address: '', city: '', basicSalary: 0 })
 
   useEffect(() => {
@@ -79,6 +81,25 @@ export default function EmployeeDetailPage() {
     }
   }
 
+  const resendActivation = async () => {
+    if (!employee) return
+    try {
+      setIsSendingActivation(true)
+      setError(null)
+      setSuccess(null)
+      const res = await employeeService.resendActivation(employee.id)
+      setSuccess(
+        res.activationLink
+          ? `${res.message ?? 'Activation email sent.'} Activation link: ${res.activationLink}`
+          : res.message ?? 'Activation email sent.'
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to resend activation email.')
+    } finally {
+      setIsSendingActivation(false)
+    }
+  }
+
   if (isLoading) return <div className="p-8 text-sm text-muted">Loading employee...</div>
   if (!employee) return <div className="p-8 text-sm text-red-700">{error ?? 'Employee not found.'}</div>
 
@@ -96,14 +117,31 @@ export default function EmployeeDetailPage() {
           <ArrowLeft size={16} />
           Back to Employees
         </button>
-        <Button size="sm" variant="outline" leftIcon={<Edit2 size={14} />} onClick={() => setIsEditOpen(true)}>
-          Edit Employee
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            leftIcon={<Mail size={14} />}
+            onClick={resendActivation}
+            isLoading={isSendingActivation}
+          >
+            Resend Activation
+          </Button>
+          <Button size="sm" variant="outline" leftIcon={<Edit2 size={14} />} onClick={() => setIsEditOpen(true)}>
+            Edit Employee
+          </Button>
+        </div>
       </div>
 
       {error && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+          {success}
         </div>
       )}
 

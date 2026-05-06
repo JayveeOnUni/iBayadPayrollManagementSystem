@@ -30,6 +30,13 @@ export interface AuthResponse {
   tokens: AuthTokens
 }
 
+export interface ActivationTokenInfo {
+  email: string
+  firstName?: string
+  lastName?: string
+  expiresAt: string
+}
+
 // ─── Department & Position ────────────────────────────────────────────────────
 
 export interface Department {
@@ -165,17 +172,48 @@ export interface AttendanceRequest {
 
 // ─── Leave ────────────────────────────────────────────────────────────────────
 
-export type LeaveType = 'vacation' | 'sick' | 'emergency' | 'maternity' | 'paternity' | 'bereavement' | 'solo_parent' | 'others'
+export type LeaveType = 'vacation' | 'sick' | 'emergency' | 'bereavement' | 'non_paid' | 'maternity' | 'paternity' | 'solo_parent' | 'others'
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface LeaveTypeConfig {
+  id: string
+  code: string
+  name: string
+  description?: string
+  isPaid: boolean
+  isAccrualBased: boolean
+  requiresBalance: boolean
+  appliesToProbationary: boolean
+  appliesToRegular: boolean
+  maxDaysPerRequest?: number
+  filingDeadlineDays?: number
+  filingDeadlineType?: string
+  requiresDocument: boolean
+  documentRule?: string
+  isCashConvertible: boolean
+  isCarryOverAllowed: boolean
+  isStatutory: boolean
+  dayCountType: 'working_days' | 'calendar_days'
+  policyNotes?: string
+}
 
 export interface LeaveBalance {
   id: string
   employeeId: string
+  leaveTypeId?: string
+  code?: string
   leaveType: LeaveType
   allocated: number
+  openingBalance?: number
+  earnedCredits?: number
+  pendingCredits?: number
+  carriedOverCredits?: number
+  forfeitedCredits?: number
+  convertedToCashCredits?: number
   used: number
   remaining: number
   year: number
+  entitlementStage?: string
 }
 
 export interface LeaveApplication {
@@ -186,7 +224,22 @@ export interface LeaveApplication {
   startDate: string
   endDate: string
   totalDays: number
+  dayCountType?: 'working_days' | 'calendar_days'
   reason: string
+  emergencyReasonCategory?: string
+  unpaidDays?: number
+  deductedSickDays?: number
+  deductedVacationDays?: number
+  payrollImpactStatus?: string
+  attendanceImpactStatus?: string
+  validationWarnings?: string[]
+  documents?: Array<{
+    id: string
+    documentType: string
+    fileName: string
+    fileUrl: string
+    status: string
+  }>
   status: LeaveStatus
   approvedBy?: string
   approvedAt?: string
@@ -477,6 +530,8 @@ export interface ApiResponse<T> {
   success: boolean
   data: T
   message?: string
+  activationLink?: string
+  activationEmailSent?: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -524,8 +579,20 @@ export interface EmployeeFormData {
 }
 
 export interface LeaveApplicationFormData {
-  leaveType: LeaveType
+  employeeId?: string
+  leaveTypeId: string
   startDate: string
   endDate: string
   reason: string
+  emergencyReasonCategory?: string
+  notificationAt?: string
+  notificationMethod?: string
+  emailFollowUpAt?: string
+  isContagious?: boolean
+  deliveryDate?: string
+  deliveryCount?: number
+  spouseDeliveryCount?: number
+  relationshipToDeceased?: string
+  acknowledgedPolicy?: boolean
+  documentTypes?: string[]
 }

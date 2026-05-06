@@ -1,0 +1,447 @@
+import { format } from 'date-fns'
+import pool from '../utils/db'
+import { LeaveAttendanceService } from './leaveAttendanceService'
+import { LeaveAuditService } from './leaveAuditService'
+import { LeaveBalanceService } from './leaveBalanceService'
+import { LeavePayrollImpactService } from './leavePayrollImpactService'
+import { LeaveCode, LeavePolicyService, LeaveRequestInput } from './leavePolicyService'
+
+export class LeaveRequestService {
+  static async list(params: {
+    employeeId?: string
+    status?: string
+    leaveTypeId?: string
+    departmentId?: string
+    startDate?: string
+    endDate?: string
+    payrollPeriodId?: string
+  }): Promise<Record<string, unknown>[]> {
+    const conditions: string[] = []
+    const values: unknown[] = []
+    let index = 1
+
+    if (params.employeeId) {
+      conditions.push(`lr.employee_id = $${index++}`)
+      values.push(params.employeeId)
+    }
+    if (params.status) {
+      conditions.push(`lr.status = $${index++}`)
+      values.push(params.status)
+    }
+    if (params.leaveTypeId) {
+      conditions.push(`lr.leave_type_id = $${index++}`)
+      values.push(params.leaveTypeId)
+    }
+    if (params.departmentId) {
+      conditions.push(`e.department_id = $${index++}`)
+      values.push(params.departmentId)
+    }
+    if (params.startDate) {
+      conditions.push(`lr.end_date >= $${index++}`)
+      values.push(params.startDate)
+    }
+    if (params.endDate) {
+      conditions.push(`lr.start_date <= $${index++}`)
+      values.push(params.endDate)
+    }
+    if (params.payrollPeriodId) {
+      conditions.push(`EXISTS (
+        SELECT 1 FROM payroll_periods pp
+        WHERE pp.id = $${index++}
+          AND daterange(lr.start_date, lr.end_date, '[]') && daterange(pp.start_date, pp.end_date, '[]')
+      )`)
+      values.push(params.payrollPeriodId)
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+    const result = await pool.query(
+      `SELECT lr.*, e.first_name, e.last_name, e.employee_number, e.department_id,
+              lt.name AS leave_type_name, lt.code AS leave_type_code,
+              COALESCE(json_agg(DISTINCT jsonb_build_object(
+                'id', ld.id, 'document_type', ld.document_type, 'file_name', ld.file_name,
+                'file_url', ld.file_url, 'status', ld.status
+              )) FILTER (WHERE ld.id IS NOT NULL), '[]') AS documents
+       FROM leave_requests lr
+       JOIN employees e ON e.id = lr.employee_id
+       JOIN leave_types lt ON lt.id = lr.leave_type_id
+       LEFT JOIN leave_documents ld ON ld.leave_request_id = lr.id
+       ${where}
+       GROUP BY lr.id, e.first_name, e.last_name, e.employee_number, e.department_id, lt.name, lt.code
+       ORDER BY lr.created_at DESC`,
+      values
+    )
+    return result.rows
+  }
+
+  static async getById(id: string): Promise<Record<string, unknown> | undefined> {
+    const result = await pool.query(
+      `SELECT lr.*, e.first_name, e.last_name, e.employee_number, e.department_id,
+              lt.name AS leave_type_name, lt.code AS leave_type_code,
+              COALESCE(json_agg(DISTINCT jsonb_build_object(
+                'id', ld.id, 'document_type', ld.document_type, 'file_name', ld.file_name,
+                'file_url', ld.file_url, 'status', ld.status
+              )) FILTER (WHERE ld.id IS NOT NULL), '[]') AS documents
+       FROM leave_requests lr
+       JOIN employees e ON e.id = lr.employee_id
+       JOIN leave_types lt ON lt.id = lr.leave_type_id
+       LEFT JOIN leave_documents ld ON ld.leave_request_id = lr.id
+       WHERE lr.id = $1
+       GROUP BY lr.id, e.first_name, e.last_name, e.employee_number, e.department_id, lt.name, lt.code`,
+      [id]
+    )
+    return result.rows[0]
+  }
+
+  static async create(input: LeaveRequestInput, actor: { userId?: string; employeeId?: string; role?: string }): Promise<Record<string, unknown>> {
+    const validation = await LeavePolicyService.validate(input)
+    if (validation.errors.length) {
+      const error = new Error(validation.errors.join(' '))
+      error.name = 'LeaveValidationError'
+      throw error
+    }
+
+    const year = LeavePolicyService.parseDate(input.startDate).getFullYear()
+    const split = await this.computeDeductionSplit(input.employeeId, validation.leaveType.code, validation.totalDays, year)
+
+    if ((validation.leaveType.code === 'VACATION' || validation.leaveType.code === 'SICK') && split.unpaidDays > 0) {
+      const error = new Error(`Insufficient ${validation.leaveType.name.toLowerCase()} credits.`)
+      error.name = 'LeaveValidationError'
+      throw error
+    }
+
+    const result = await pool.query(
+      `INSERT INTO leave_requests (
+         employee_id, leave_type_id, start_date, end_date, total_days, day_count_type, reason,
+         emergency_reason_category, status, is_paid, unpaid_days, deducted_sick_days,
+         deducted_vacation_days, deducted_other_days, payroll_impact_status, attendance_impact_status,
+         notification_at, notification_method, email_follow_up_at, is_contagious,
+         delivery_date, delivery_count, spouse_delivery_count, relationship_to_deceased,
+         acknowledged_policy, is_half_day
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, 0,
+         'not_applied', 'not_applied', $13, $14, $15, $16, $17, $18, $19, $20, $21, false
+       ) RETURNING *`,
+      [
+        input.employeeId,
+        input.leaveTypeId,
+        input.startDate,
+        input.endDate,
+        validation.totalDays,
+        validation.dayCountType,
+        input.reason,
+        input.emergencyReasonCategory ?? null,
+        split.unpaidDays < validation.totalDays && validation.leaveType.code !== 'NON_PAID',
+        split.unpaidDays,
+        split.deductedSickDays,
+        split.deductedVacationDays,
+        input.notificationAt ?? null,
+        input.notificationMethod ?? null,
+        input.emailFollowUpAt ?? null,
+        input.isContagious ?? false,
+        input.deliveryDate ?? null,
+        input.deliveryCount ?? null,
+        input.spouseDeliveryCount ?? null,
+        input.relationshipToDeceased ?? null,
+        input.acknowledgedPolicy ?? false,
+      ]
+    )
+
+    const request = result.rows[0] as Record<string, unknown>
+    await this.createDocumentPlaceholders(String(request.id), input.documentTypes, actor.userId)
+    await LeaveAuditService.record({
+      leaveRequestId: String(request.id),
+      action: 'submitted',
+      previousStatus: null,
+      newStatus: 'pending',
+      remarks: validation.warnings.join(' '),
+      userId: actor.userId,
+      employeeId: actor.employeeId,
+      role: actor.role,
+    })
+    await LeaveAuditService.recordEntityAudit({
+      userId: actor.userId,
+      action: 'leave_request_submitted',
+      entity: 'leave_requests',
+      entityId: String(request.id),
+      newValues: request,
+    })
+
+    return { ...request, validation_warnings: validation.warnings }
+  }
+
+  static async approve(id: string, actor: { userId?: string; employeeId?: string; role?: string }, remarks?: string): Promise<Record<string, unknown>> {
+    const existing = await this.getRawRequest(id)
+    if (!existing) throw new Error('Request not found')
+    if (existing.status !== 'pending') throw new Error('Request not found or already reviewed')
+
+    await this.validateApprovalDocuments(existing)
+
+    const year = new Date(existing.start_date).getFullYear()
+    const split = await this.computeDeductionSplit(existing.employee_id, existing.leave_type_code, Number(existing.total_days), year)
+    if ((existing.leave_type_code === 'VACATION' || existing.leave_type_code === 'SICK') && split.unpaidDays > 0) {
+      throw new Error(`Insufficient ${String(existing.leave_type_name).toLowerCase()} credits.`)
+    }
+
+    const update = await pool.query(
+      `UPDATE leave_requests
+       SET status = 'approved',
+           reviewed_by = $2,
+           reviewed_at = NOW(),
+           review_remarks = $3,
+           approved_at = NOW(),
+           unpaid_days = $4,
+           deducted_sick_days = $5,
+           deducted_vacation_days = $6,
+           is_paid = $7,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        actor.userId ?? null,
+        remarks ?? null,
+        split.unpaidDays,
+        split.deductedSickDays,
+        split.deductedVacationDays,
+        split.unpaidDays < Number(existing.total_days) && existing.leave_type_code !== 'NON_PAID',
+      ]
+    )
+    const approved = update.rows[0] as Record<string, unknown>
+
+    await LeaveAttendanceService.applyApprovedLeave({
+      employeeId: existing.employee_id,
+      startDate: new Date(existing.start_date),
+      endDate: new Date(existing.end_date),
+      dayCountType: existing.day_count_type,
+      unpaidDays: split.unpaidDays,
+      leaveName: existing.leave_type_name,
+      userId: actor.userId,
+    })
+    await LeavePayrollImpactService.createForApprovedLeave({
+      employeeId: existing.employee_id,
+      leaveRequestId: id,
+      unpaidDays: split.unpaidDays,
+      paidDays: Number(existing.total_days) - split.unpaidDays,
+      leaveCode: existing.leave_type_code,
+    })
+    await pool.query(`UPDATE leave_requests SET attendance_impact_status = 'applied', updated_at = NOW() WHERE id = $1`, [id])
+
+    await LeaveAuditService.record({
+      leaveRequestId: id,
+      action: 'approved',
+      previousStatus: existing.status,
+      newStatus: 'approved',
+      remarks,
+      userId: actor.userId,
+      employeeId: actor.employeeId,
+      role: actor.role,
+    })
+
+    return approved
+  }
+
+  static async reject(id: string, actor: { userId?: string; employeeId?: string; role?: string }, remarks: string): Promise<Record<string, unknown>> {
+    if (!remarks) throw new Error('Rejection requires remarks.')
+    const existing = await this.getRawRequest(id)
+    if (!existing) throw new Error('Request not found')
+    if (existing.status !== 'pending') throw new Error('Request not found or already reviewed')
+
+    const result = await pool.query(
+      `UPDATE leave_requests
+       SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(),
+           review_remarks = $3, rejected_at = NOW(), updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, actor.userId ?? null, remarks]
+    )
+    await LeaveAuditService.record({
+      leaveRequestId: id,
+      action: 'rejected',
+      previousStatus: existing.status,
+      newStatus: 'rejected',
+      remarks,
+      userId: actor.userId,
+      employeeId: actor.employeeId,
+      role: actor.role,
+    })
+    return result.rows[0] as Record<string, unknown>
+  }
+
+  static async cancel(id: string, actor: { userId?: string; employeeId?: string; role?: string }, remarks?: string): Promise<Record<string, unknown>> {
+    const existing = await this.getRawRequest(id)
+    if (!existing) throw new Error('Request not found')
+    if (actor.role === 'employee' && existing.employee_id !== actor.employeeId) throw new Error('Employees can only cancel their own leave requests')
+    if (!['pending', 'approved'].includes(existing.status)) throw new Error('Request cannot be cancelled')
+
+    if (existing.status === 'approved') {
+      await LeaveAttendanceService.reverseLeave({
+        employeeId: existing.employee_id,
+        startDate: new Date(existing.start_date),
+        endDate: new Date(existing.end_date),
+      })
+    }
+
+    const result = await pool.query(
+      `UPDATE leave_requests
+       SET status = 'cancelled', cancelled_at = NOW(), review_remarks = COALESCE($2, review_remarks),
+           attendance_impact_status = CASE WHEN attendance_impact_status = 'applied' THEN 'reversed' ELSE attendance_impact_status END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, remarks ?? null]
+    )
+    await LeaveAuditService.record({
+      leaveRequestId: id,
+      action: 'cancelled',
+      previousStatus: existing.status,
+      newStatus: 'cancelled',
+      remarks,
+      userId: actor.userId,
+      employeeId: actor.employeeId,
+      role: actor.role,
+    })
+    return result.rows[0] as Record<string, unknown>
+  }
+
+  static async attachDocument(params: {
+    leaveRequestId: string
+    documentType: string
+    fileName: string
+    fileUrl: string
+    mimeType?: string
+    uploadedBy?: string
+  }): Promise<Record<string, unknown>> {
+    const result = await pool.query(
+      `INSERT INTO leave_documents (leave_request_id, document_type, file_name, file_url, mime_type, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        params.leaveRequestId,
+        params.documentType,
+        params.fileName,
+        params.fileUrl,
+        params.mimeType ?? null,
+        params.uploadedBy ?? null,
+      ]
+    )
+    await LeaveAuditService.record({
+      leaveRequestId: params.leaveRequestId,
+      action: 'document_uploaded',
+      newStatus: null,
+      userId: params.uploadedBy,
+    })
+    return result.rows[0] as Record<string, unknown>
+  }
+
+  static async preview(input: LeaveRequestInput): Promise<Record<string, unknown>> {
+    const validation = await LeavePolicyService.validate(input)
+    const year = LeavePolicyService.parseDate(input.startDate).getFullYear()
+    const split = await this.computeDeductionSplit(input.employeeId, validation.leaveType.code, validation.totalDays, year)
+    return {
+      leaveType: validation.leaveType,
+      totalDays: validation.totalDays,
+      dayCountType: validation.dayCountType,
+      warnings: validation.warnings,
+      errors: validation.errors,
+      deduction: split,
+      approvalRoute: this.approvalRoute(validation.leaveType.code, validation.totalDays),
+      clarificationItems: LeavePolicyService.clarificationItems,
+    }
+  }
+
+  private static async computeDeductionSplit(employeeId: string, code: LeaveCode, totalDays: number, year: number): Promise<{
+    deductedSickDays: number
+    deductedVacationDays: number
+    unpaidDays: number
+  }> {
+    if (code === 'NON_PAID') return { deductedSickDays: 0, deductedVacationDays: 0, unpaidDays: totalDays }
+    if (code === 'VACATION') {
+      const available = await LeaveBalanceService.getAvailable(employeeId, 'VACATION', year)
+      return { deductedSickDays: 0, deductedVacationDays: Math.min(totalDays, available), unpaidDays: Math.max(0, totalDays - available) }
+    }
+    if (code === 'SICK') {
+      const available = await LeaveBalanceService.getAvailable(employeeId, 'SICK', year)
+      return { deductedSickDays: Math.min(totalDays, available), deductedVacationDays: 0, unpaidDays: Math.max(0, totalDays - available) }
+    }
+    if (code === 'EMERGENCY') {
+      const employee = await LeavePolicyService.getEmployee(employeeId)
+      if (!employee || LeavePolicyService.isProbationary(employee)) {
+        return { deductedSickDays: 0, deductedVacationDays: 0, unpaidDays: totalDays }
+      }
+      const sick = await LeaveBalanceService.getAvailable(employeeId, 'SICK', year)
+      const deductedSickDays = Math.min(totalDays, sick)
+      const remainingAfterSick = totalDays - deductedSickDays
+      const vacation = await LeaveBalanceService.getAvailable(employeeId, 'VACATION', year)
+      const deductedVacationDays = Math.min(remainingAfterSick, vacation)
+      return {
+        deductedSickDays,
+        deductedVacationDays,
+        unpaidDays: Math.max(0, remainingAfterSick - deductedVacationDays),
+      }
+    }
+    if (code === 'BEREAVEMENT') return { deductedSickDays: 0, deductedVacationDays: 0, unpaidDays: totalDays }
+    return { deductedSickDays: 0, deductedVacationDays: 0, unpaidDays: 0 }
+  }
+
+  private static approvalRoute(code: LeaveCode, totalDays: number): string[] {
+    if (code === 'VACATION' && totalDays > 3) return ['department_head', 'hr_admin']
+    if (code === 'VACATION') return ['immediate_supervisor', 'hr_admin']
+    return ['immediate_supervisor', 'hr_admin']
+  }
+
+  private static async getRawRequest(id: string): Promise<{
+    id: string
+    employee_id: string
+    start_date: Date
+    end_date: Date
+    total_days: string
+    day_count_type: 'working_days' | 'calendar_days'
+    status: string
+    is_contagious: boolean
+    leave_type_code: LeaveCode
+    leave_type_name: string
+  } | undefined> {
+    const result = await pool.query(
+      `SELECT lr.*, lt.code AS leave_type_code, lt.name AS leave_type_name
+       FROM leave_requests lr
+       JOIN leave_types lt ON lt.id = lr.leave_type_id
+       WHERE lr.id = $1`,
+      [id]
+    )
+    return result.rows[0]
+  }
+
+  private static async validateApprovalDocuments(request: {
+    id: string
+    total_days: string
+    is_contagious: boolean
+    leave_type_code: LeaveCode
+  }): Promise<void> {
+    if (request.leave_type_code !== 'SICK') return
+    const docs = await pool.query(
+      `SELECT document_type FROM leave_documents WHERE leave_request_id = $1 AND status IN ('pending', 'verified')`,
+      [request.id]
+    )
+    const documentTypes = new Set(docs.rows.map((row: { document_type: string }) => row.document_type))
+    if (Number(request.total_days) > 2 && !documentTypes.has('MEDICAL_CERTIFICATE')) {
+      throw new Error('Sick leave of more than 2 days requires a medical certificate.')
+    }
+    if (request.is_contagious && !documentTypes.has('MEDICAL_CLEARANCE')) {
+      throw new Error('A medical clearance is required before returning to work for contagious disease.')
+    }
+  }
+
+  private static async createDocumentPlaceholders(leaveRequestId: string, documentTypes?: string[], uploadedBy?: string): Promise<void> {
+    if (!documentTypes?.length) return
+    for (const documentType of documentTypes) {
+      await this.attachDocument({
+        leaveRequestId,
+        documentType,
+        fileName: `${documentType.toLowerCase()}-${format(new Date(), 'yyyyMMddHHmmss')}.txt`,
+        fileUrl: `metadata://${documentType.toLowerCase()}`,
+        mimeType: 'text/plain',
+        uploadedBy,
+      })
+    }
+  }
+}

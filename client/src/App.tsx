@@ -7,6 +7,7 @@ import EmployeeLayout from './layouts/EmployeeLayout'
 
 // Auth
 import LoginPage from './pages/auth/LoginPage'
+import ActivateAccountPage from './pages/auth/ActivateAccountPage'
 
 // Admin pages
 import AdminDashboardPage from './pages/admin/DashboardPage'
@@ -66,6 +67,7 @@ export default function App() {
               : <LoginPage />
           }
         />
+        <Route path="/account/activate" element={<ActivateAccountPage />} />
 
         {/* Admin routes */}
         <Route
