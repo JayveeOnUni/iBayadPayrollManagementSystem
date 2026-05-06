@@ -78,8 +78,8 @@ WITH seeded_users AS (
   SELECT 'admin@ibayad.test' AS email, 'admin'::user_role AS role, 'TST-002' AS employee_number
   UNION ALL SELECT 'employee@ibayad.test', 'employee'::user_role, 'TST-005'
 )
-INSERT INTO users (employee_id, email, password_hash, role, is_active)
-SELECT e.id, su.email, crypt('Ibayad123!', gen_salt('bf', 10)), su.role, true
+INSERT INTO users (employee_id, email, password_hash, role, is_active, activated_at)
+SELECT e.id, su.email, crypt('Ibayad123!', gen_salt('bf', 10)), su.role, true, NOW()
 FROM seeded_users su
 JOIN employees e ON e.employee_number = su.employee_number
 ON CONFLICT (email) DO UPDATE
@@ -87,6 +87,9 @@ SET employee_id = EXCLUDED.employee_id,
     password_hash = EXCLUDED.password_hash,
     role = EXCLUDED.role,
     is_active = true,
+    activated_at = NOW(),
+    activation_token_hash = NULL,
+    activation_token_expires_at = NULL,
     updated_at = NOW();
 
 INSERT INTO payroll_periods (name, start_date, end_date, pay_date, pay_frequency, status)

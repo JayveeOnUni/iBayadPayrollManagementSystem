@@ -45,6 +45,8 @@ export default function LeaveCalendarPage() {
     vacation: 'bg-brand-100 text-brand-700',
     sick: 'bg-red-100 text-red-700',
     emergency: 'bg-amber-100 text-amber-700',
+    bereavement: 'bg-slate-100 text-slate-700',
+    non_paid: 'bg-zinc-100 text-zinc-700',
     maternity: 'bg-sky-100 text-sky-700',
     paternity: 'bg-sky-100 text-sky-700',
   }

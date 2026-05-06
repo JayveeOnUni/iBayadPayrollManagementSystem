@@ -87,7 +87,11 @@ export default function EmployeeListPage() {
       setTotalEmployees((current) => current + 1)
       setIsAddOpen(false)
       setForm(defaultEmployeeForm)
-      setSuccess(res.message ?? 'Employee account created.')
+      setSuccess(
+        res.activationLink
+          ? `${res.message ?? 'Employee account created.'} Activation link: ${res.activationLink}`
+          : res.message ?? 'Employee account created. Activation email sent.'
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create employee.')
     } finally {

@@ -1,11 +1,11 @@
--- Creates login accounts for active employee profiles that do not have one yet.
--- Useful for employees created before POST /api/employees created linked users.
--- Temporary password: Ibayad123!
+-- Creates inactive user records for active employee profiles that do not have one yet.
+-- This does not generate usable activation links. Resend activation from an admin
+-- endpoint/UI after creating these records.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-INSERT INTO users (employee_id, email, password_hash, role, is_active)
-SELECT e.id, e.email, crypt('Ibayad123!', gen_salt('bf', 10)), 'employee'::user_role, true
+INSERT INTO users (employee_id, email, role, is_active)
+SELECT e.id, e.email, 'employee'::user_role, false
 FROM employees e
 LEFT JOIN users linked_user ON linked_user.employee_id = e.id
 WHERE linked_user.id IS NULL

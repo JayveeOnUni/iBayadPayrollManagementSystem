@@ -1,0 +1,381 @@
+import { addDays, differenceInCalendarDays, format, isAfter, isBefore, parseISO } from 'date-fns'
+import pool from '../utils/db'
+import { HolidayCalendarService } from './holidayCalendarService'
+
+export type LeaveCode = 'VACATION' | 'SICK' | 'EMERGENCY' | 'BEREAVEMENT' | 'NON_PAID' | 'MATERNITY' | 'PATERNITY'
+export type LeaveDayCountType = 'working_days' | 'calendar_days'
+
+export interface LeaveTypePolicyRow {
+  id: string
+  code: LeaveCode
+  name: string
+  is_paid: boolean
+  is_accrual_based: boolean
+  requires_balance: boolean
+  applies_to_probationary: boolean
+  applies_to_regular: boolean
+  max_days_per_request: string | null
+  day_count_type: LeaveDayCountType
+}
+
+export interface LeaveEmployeeRow {
+  id: string
+  employee_number: string
+  first_name: string
+  last_name: string
+  employment_type: string
+  hire_date: Date
+  regularization_date: Date | null
+  gender: string | null
+  civil_status: string | null
+  basic_salary: string
+  daily_rate: string | null
+  work_days_per_month: number | null
+  city: string | null
+  province: string | null
+  nationality: string | null
+  shift_start_time: string | null
+}
+
+export interface LeaveRequestInput {
+  employeeId: string
+  leaveTypeId: string
+  startDate: string
+  endDate: string
+  reason: string
+  emergencyReasonCategory?: string
+  notificationAt?: string
+  notificationMethod?: string
+  emailFollowUpAt?: string
+  isContagious?: boolean
+  deliveryDate?: string
+  deliveryCount?: number
+  spouseDeliveryCount?: number
+  relationshipToDeceased?: string
+  acknowledgedPolicy?: boolean
+  documentTypes?: string[]
+}
+
+export interface LeaveValidationResult {
+  employee: LeaveEmployeeRow
+  leaveType: LeaveTypePolicyRow
+  totalDays: number
+  dayCountType: LeaveDayCountType
+  warnings: string[]
+  errors: string[]
+}
+
+const EMERGENCY_REASONS = new Set([
+  'family_accident_hospitalization_serious_sickness',
+  'natural_calamity',
+  'extraordinary_situation',
+])
+
+const BEREAVEMENT_RELATIONSHIPS = new Set(['spouse', 'parents', 'siblings', 'parents_in_law'])
+
+export class LeavePolicyService {
+  static readonly clarificationItems = [
+    'Vacation leave conflict: maximum 3 consecutive days versus department-head route for more than 3 days.',
+    'Exact leave entitlement progression from 5 to 10 to 15 days requires HR confirmation.',
+    'Front-loaded versus monthly accrual requires HR confirmation; current implementation computes earned monthly credits.',
+    'Vacation, sick, emergency, and bereavement day counting require HR confirmation; current implementation uses working days and excludes non-working holidays.',
+    'Bereavement payment, deduction source, and supporting documents require HR confirmation; current implementation treats it as configurable unpaid/non-credit leave.',
+    'Emergency leave supporting documents require HR confirmation.',
+    'Sick leave approval versus notice-only workflow requires HR confirmation; current implementation still routes through review.',
+    'Mandated leave and recall effects require HR confirmation.',
+    'Holiday handling for non-statutory leaves requires HR confirmation; current implementation excludes non-working holidays for working-day leaves.',
+    'Payroll daily-rate formulas require HR confirmation; current implementation uses employee daily_rate or monthly salary divided by work_days_per_month.',
+  ]
+
+  static parseDate(value: string): Date {
+    return parseISO(value)
+  }
+
+  static toDateKey(value: Date): string {
+    return format(value, 'yyyy-MM-dd')
+  }
+
+  static async getEmployee(employeeId: string): Promise<LeaveEmployeeRow | undefined> {
+    const result = await pool.query(
+      `SELECT e.*, ws.start_time AS shift_start_time
+       FROM employees e
+       LEFT JOIN work_shifts ws ON ws.id = e.shift_id
+       WHERE e.id = $1`,
+      [employeeId]
+    )
+    return result.rows[0] as LeaveEmployeeRow | undefined
+  }
+
+  static async getLeaveType(leaveTypeId: string): Promise<LeaveTypePolicyRow | undefined> {
+    const result = await pool.query(
+      `SELECT id, code, name, is_paid, COALESCE(is_accrual_based, false) AS is_accrual_based,
+              COALESCE(requires_balance, false) AS requires_balance,
+              COALESCE(applies_to_probationary, false) AS applies_to_probationary,
+              COALESCE(applies_to_regular, true) AS applies_to_regular,
+              max_days_per_request,
+              COALESCE(day_count_type, 'working_days') AS day_count_type
+       FROM leave_types
+       WHERE id = $1 AND is_active = true`,
+      [leaveTypeId]
+    )
+    return result.rows[0] as LeaveTypePolicyRow | undefined
+  }
+
+  static async getLeaveTypeByCode(code: LeaveCode): Promise<LeaveTypePolicyRow | undefined> {
+    const result = await pool.query(
+      `SELECT id, code, name, is_paid, COALESCE(is_accrual_based, false) AS is_accrual_based,
+              COALESCE(requires_balance, false) AS requires_balance,
+              COALESCE(applies_to_probationary, false) AS applies_to_probationary,
+              COALESCE(applies_to_regular, true) AS applies_to_regular,
+              max_days_per_request,
+              COALESCE(day_count_type, 'working_days') AS day_count_type
+       FROM leave_types
+       WHERE code = $1 AND is_active = true`,
+      [code]
+    )
+    return result.rows[0] as LeaveTypePolicyRow | undefined
+  }
+
+  static isRegular(employee: LeaveEmployeeRow): boolean {
+    return employee.employment_type === 'regular'
+  }
+
+  static isProbationary(employee: LeaveEmployeeRow): boolean {
+    return employee.employment_type === 'probationary'
+  }
+
+  static async countLeaveDays(
+    leaveType: LeaveTypePolicyRow,
+    employee: LeaveEmployeeRow,
+    startDate: Date,
+    endDate: Date
+  ): Promise<number> {
+    if (leaveType.day_count_type === 'calendar_days') {
+      return differenceInCalendarDays(endDate, startDate) + 1
+    }
+
+    return HolidayCalendarService.countWorkingDays({
+      startDate,
+      endDate,
+      country: employee.nationality && employee.nationality !== 'Filipino' ? employee.nationality : 'Philippines',
+      cityOrProvince: employee.city ?? employee.province ?? undefined,
+    })
+  }
+
+  static monthsEarnedForYear(employee: LeaveEmployeeRow, year: number, asOf = new Date()): number {
+    const regularizationDate = employee.regularization_date ? new Date(employee.regularization_date) : null
+    if (!regularizationDate) return 0
+
+    const effectiveStart = regularizationDate.getFullYear() === year ? regularizationDate : new Date(year, 0, 1)
+    const effectiveEnd = asOf.getFullYear() === year ? asOf : new Date(year, 11, 31)
+    if (isBefore(effectiveEnd, effectiveStart)) return 0
+
+    return effectiveEnd.getMonth() - effectiveStart.getMonth() + 1
+  }
+
+  static entitlementFor(employee: LeaveEmployeeRow, year: number, code: LeaveCode): { annual: number; monthly: number; stage: string } {
+    if (code !== 'VACATION' && code !== 'SICK') return { annual: 0, monthly: 0, stage: 'not_accrual_based' }
+    if (!this.isRegular(employee) || !employee.regularization_date) return { annual: 0, monthly: 0, stage: 'probationary_or_not_regular' }
+
+    const regularizationDate = new Date(employee.regularization_date)
+    if (regularizationDate <= new Date('2021-12-31T00:00:00')) {
+      return { annual: 15, monthly: 1.25, stage: 'pre_2022_regular' }
+    }
+
+    const yearsAfterRegularization = year - regularizationDate.getFullYear()
+    if (yearsAfterRegularization <= 0) return { annual: 5, monthly: 0.42, stage: 'regular_first_entitlement' }
+    if (yearsAfterRegularization === 1) return { annual: 10, monthly: 0.83, stage: 'regular_following_entitlement' }
+    return { annual: 15, monthly: 1.25, stage: 'regular_later_entitlement' }
+  }
+
+  static earnedCreditsFor(employee: LeaveEmployeeRow, year: number, code: LeaveCode, asOf = new Date()): number {
+    const entitlement = this.entitlementFor(employee, year, code)
+    const months = this.monthsEarnedForYear(employee, year, asOf)
+    return Math.min(entitlement.annual, Math.round(entitlement.monthly * months * 100) / 100)
+  }
+
+  static async validate(input: LeaveRequestInput, now = new Date()): Promise<LeaveValidationResult> {
+    const errors: string[] = []
+    const warnings: string[] = []
+    const employee = await this.getEmployee(input.employeeId)
+    const leaveType = await this.getLeaveType(input.leaveTypeId)
+
+    if (!employee) throw new Error('Employee not found')
+    if (!leaveType) throw new Error('Leave type not found')
+
+    const startDate = this.parseDate(input.startDate)
+    const endDate = this.parseDate(input.endDate)
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      errors.push('Start date and end date must be valid dates.')
+    }
+    if (isAfter(startDate, endDate)) {
+      errors.push('Leave end date cannot be earlier than start date.')
+    }
+
+    const totalDays = errors.length ? 0 : await this.countLeaveDays(leaveType, employee, startDate, endDate)
+    if (totalDays <= 0 && errors.length === 0) errors.push('Selected date range has no countable leave days.')
+
+    if (this.isProbationary(employee) && !leaveType.applies_to_probationary) {
+      errors.push(`${leaveType.name} is available only to regular employees.`)
+    }
+    if (this.isRegular(employee) && !leaveType.applies_to_regular) {
+      errors.push(`${leaveType.name} is not available to regular employees.`)
+    }
+
+    await this.validateOverlap(input, errors)
+
+    switch (leaveType.code) {
+      case 'VACATION':
+        await this.validateVacation(input, startDate, totalDays, now, warnings, errors)
+        break
+      case 'SICK':
+        this.validateSick(input, totalDays, employee, startDate, warnings, errors)
+        break
+      case 'EMERGENCY':
+        this.validateEmergency(input, employee, startDate, warnings, errors)
+        break
+      case 'BEREAVEMENT':
+        this.validateBereavement(input, totalDays, warnings, errors)
+        break
+      case 'MATERNITY':
+        this.validateMaternity(input, totalDays, employee, errors)
+        break
+      case 'PATERNITY':
+        this.validatePaternity(input, totalDays, employee, startDate, endDate, errors)
+        break
+      case 'NON_PAID':
+        break
+    }
+
+    if (!input.acknowledgedPolicy) {
+      warnings.push('Employee acknowledgement is recommended before submission.')
+    }
+
+    return { employee, leaveType, totalDays, dayCountType: leaveType.day_count_type, warnings, errors }
+  }
+
+  private static async validateOverlap(input: LeaveRequestInput, errors: string[]): Promise<void> {
+    const result = await pool.query(
+      `SELECT id
+       FROM leave_requests
+       WHERE employee_id = $1
+         AND status IN ('pending', 'approved')
+         AND daterange(start_date, end_date, '[]') && daterange($2::date, $3::date, '[]')
+       LIMIT 1`,
+      [input.employeeId, input.startDate, input.endDate]
+    )
+    if (result.rows[0]) errors.push('This request overlaps with an existing leave request.')
+  }
+
+  private static async validateVacation(
+    input: LeaveRequestInput,
+    startDate: Date,
+    totalDays: number,
+    now: Date,
+    warnings: string[],
+    errors: string[]
+  ): Promise<void> {
+    const workingDaysBeforeStart = await HolidayCalendarService.countWorkingDays({
+      startDate: addDays(now, 1),
+      endDate: addDays(startDate, -1),
+      country: 'Philippines',
+    })
+    if (workingDaysBeforeStart < 7) {
+      errors.push('Vacation leave must be filed at least 7 working days before the requested date.')
+    }
+    if (totalDays > 3) {
+      warnings.push('Clarification required: vacation leave above 3 days may be prohibited or may require department head approval.')
+    }
+    if (input.documentTypes?.length) return
+  }
+
+  private static validateSick(
+    input: LeaveRequestInput,
+    totalDays: number,
+    employee: LeaveEmployeeRow,
+    startDate: Date,
+    warnings: string[],
+    errors: string[]
+  ): void {
+    this.validateOneHourNotice(input, employee, startDate, errors)
+    const documentTypes = new Set(input.documentTypes ?? [])
+    if (totalDays > 2 && !documentTypes.has('MEDICAL_CERTIFICATE')) {
+      warnings.push('Sick leave of more than 2 days requires a medical certificate before returning to work.')
+    }
+    if (input.isContagious && !documentTypes.has('MEDICAL_CLEARANCE')) {
+      warnings.push('A medical clearance is required before returning to work for contagious disease.')
+    }
+  }
+
+  private static validateEmergency(
+    input: LeaveRequestInput,
+    employee: LeaveEmployeeRow,
+    startDate: Date,
+    warnings: string[],
+    errors: string[]
+  ): void {
+    this.validateOneHourNotice(input, employee, startDate, errors)
+    if (!input.emergencyReasonCategory || !EMERGENCY_REASONS.has(input.emergencyReasonCategory)) {
+      errors.push('Emergency leave requires a valid emergency reason category.')
+    }
+    warnings.push('Emergency leave documentation is not specified in the memo and requires HR confirmation.')
+  }
+
+  private static validateBereavement(input: LeaveRequestInput, totalDays: number, warnings: string[], errors: string[]): void {
+    if (totalDays > 5) errors.push('Bereavement leave cannot exceed 5 days.')
+    if (!input.relationshipToDeceased || !BEREAVEMENT_RELATIONSHIPS.has(input.relationshipToDeceased)) {
+      errors.push('Bereavement leave requires an immediate family relationship covered by the memo.')
+    }
+    warnings.push('Bereavement payment, deductions, and documents require HR confirmation.')
+  }
+
+  private static validateMaternity(input: LeaveRequestInput, totalDays: number, employee: LeaveEmployeeRow, errors: string[]): void {
+    if (employee.gender !== 'female') errors.push('Maternity leave is available only to pregnant female employees.')
+    if (!input.deliveryDate) errors.push('Maternity leave requires an expected or actual delivery date.')
+    if (!input.deliveryCount || input.deliveryCount < 1) errors.push('Maternity leave requires a delivery count.')
+    if (input.deliveryCount && input.deliveryCount > 4) errors.push('Maternity leave is available only for the first four deliveries.')
+    if (totalDays > 105) errors.push('Maternity leave cannot exceed 105 calendar days.')
+  }
+
+  private static validatePaternity(
+    input: LeaveRequestInput,
+    totalDays: number,
+    employee: LeaveEmployeeRow,
+    startDate: Date,
+    endDate: Date,
+    errors: string[]
+  ): void {
+    if (employee.gender !== 'male') errors.push('Paternity leave is available only to male employees.')
+    if (employee.civil_status !== 'married') errors.push('Paternity leave is available only to legally married male employees.')
+    if (!input.deliveryDate) errors.push('Paternity leave requires the spouse delivery date.')
+    if (!input.spouseDeliveryCount || input.spouseDeliveryCount < 1) errors.push('Paternity leave requires the spouse delivery count.')
+    if (input.spouseDeliveryCount && input.spouseDeliveryCount > 4) errors.push('Paternity leave is available only for the first four spouse deliveries.')
+    if (totalDays > 7) errors.push('Paternity leave cannot exceed 7 working days.')
+
+    if (input.deliveryDate) {
+      const deliveryDate = this.parseDate(input.deliveryDate)
+      const earliest = addDays(deliveryDate, -60)
+      const latest = addDays(deliveryDate, 60)
+      if (isBefore(startDate, earliest) || isAfter(endDate, latest)) {
+        errors.push('Paternity leave must be used within 60 calendar days before or after delivery.')
+      }
+    }
+  }
+
+  private static validateOneHourNotice(input: LeaveRequestInput, employee: LeaveEmployeeRow, startDate: Date, errors: string[]): void {
+    if (!input.notificationAt) {
+      errors.push('Sick and emergency leave require notice at least 1 hour before the start of shift.')
+      return
+    }
+    const shiftStart = employee.shift_start_time ?? '08:00:00'
+    const shiftStartAt = new Date(`${this.toDateKey(startDate)}T${shiftStart}`)
+    const notificationAt = new Date(input.notificationAt)
+    const minutesBeforeShift = (shiftStartAt.getTime() - notificationAt.getTime()) / 60000
+    if (minutesBeforeShift < 60) {
+      errors.push('Sick and emergency leave notice must be sent at least 1 hour before the start of shift.')
+    }
+    if (input.notificationMethod && input.notificationMethod !== 'email' && !input.emailFollowUpAt) {
+      errors.push('Alternative sick or emergency leave notices must be complemented by email within 24 hours.')
+    }
+  }
+}

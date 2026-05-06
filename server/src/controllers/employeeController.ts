@@ -1,10 +1,14 @@
 import { Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { EmployeeModel, type EmployeeRow } from '../models/Employee'
 import { asyncHandler, createError } from '../middleware/errorHandler'
 import pool from '../utils/db'
+import { sendActivationEmail } from '../services/emailService'
 
-const DEFAULT_EMPLOYEE_PASSWORD = process.env.DEFAULT_EMPLOYEE_PASSWORD || 'Ibayad123!'
+const ACTIVATION_EXPIRES_HOURS = Math.max(
+  1,
+  Number(process.env.ACCOUNT_ACTIVATION_EXPIRES_HOURS ?? 72)
+)
 
 function emptyToNull(value: unknown): string | null {
   if (value == null) return null
@@ -37,6 +41,41 @@ function isEmployeeNumberDuplicateError(error: unknown): boolean {
     error.code === '23505' &&
     error.constraint === 'employees_employee_number_key'
   )
+}
+
+function createActivationToken() {
+  const token = crypto.randomBytes(32).toString('base64url')
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+  const expiresAt = new Date(Date.now() + ACTIVATION_EXPIRES_HOURS * 60 * 60 * 1000)
+  return { token, tokenHash, expiresAt }
+}
+
+function buildActivationLink(token: string): string {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
+  const url = new URL('/account/activate', clientUrl)
+  url.searchParams.set('token', token)
+  return url.toString()
+}
+
+async function sendEmployeeActivationLink(employee: Pick<EmployeeRow, 'first_name' | 'last_name' | 'email'>, token: string) {
+  const activationLink = buildActivationLink(token)
+  try {
+    await sendActivationEmail({
+      to: employee.email,
+      name: `${employee.first_name} ${employee.last_name}`.trim(),
+      activationLink,
+      expiresHours: ACTIVATION_EXPIRES_HOURS,
+    })
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Unable to send activation email:', error)
+    }
+    throw createError(
+      'Employee account was created, but the activation email could not be sent. Check SMTP settings, then resend activation.',
+      502
+    )
+  }
+  return { activationLink }
 }
 
 export const listEmployees = asyncHandler(async (req: Request, res: Response) => {
@@ -89,6 +128,7 @@ export const createEmployee = asyncHandler(async (req: Request, res: Response) =
 
   const client = await pool.connect()
   let employee: EmployeeRow | undefined
+  const activation = createActivationToken()
   try {
     await client.query('BEGIN')
 
@@ -136,11 +176,13 @@ export const createEmployee = asyncHandler(async (req: Request, res: Response) =
 
     if (!employee) throw createError('Unable to generate a unique employee number', 500)
 
-    const passwordHash = await bcrypt.hash(DEFAULT_EMPLOYEE_PASSWORD, 12)
     await client.query(
-      `INSERT INTO users (employee_id, email, password_hash, role, is_active)
-       VALUES ($1, $2, $3, 'employee', true)`,
-      [employee.id, employee.email, passwordHash]
+      `INSERT INTO users (
+         employee_id, email, password_hash, role, is_active,
+         activation_token_hash, activation_token_expires_at, activation_sent_at
+       )
+       VALUES ($1, $2, NULL, 'employee', false, $3, $4, NOW())`,
+      [employee.id, employee.email, activation.tokenHash, activation.expiresAt]
     )
 
     await client.query('COMMIT')
@@ -151,10 +193,55 @@ export const createEmployee = asyncHandler(async (req: Request, res: Response) =
     client.release()
   }
 
+  if (!employee) throw createError('Unable to create employee account', 500)
+  const { activationLink } = await sendEmployeeActivationLink(employee, activation.token)
+
   res.status(201).json({
     success: true,
     data: employee,
-    message: `Employee account created. Temporary password: ${DEFAULT_EMPLOYEE_PASSWORD}`,
+    message: `Employee account created. Activation email sent to ${employee.email}.`,
+    activationEmailSent: true,
+    ...(process.env.NODE_ENV !== 'production' ? { activationLink } : {}),
+  })
+})
+
+export const resendEmployeeActivation = asyncHandler(async (req: Request, res: Response) => {
+  const result = await pool.query(
+    `SELECT u.id AS user_id, u.activated_at, u.password_hash,
+            e.first_name, e.last_name, e.email
+     FROM employees e
+     JOIN users u ON u.employee_id = e.id
+     WHERE e.id = $1 AND u.role = 'employee'`,
+    [req.params.id]
+  )
+
+  const account = result.rows[0]
+  if (!account) throw createError('Employee account not found', 404)
+  if (account.activated_at || account.password_hash) throw createError('Employee account is already activated', 400)
+
+  const activation = createActivationToken()
+  await pool.query(
+    `UPDATE users
+     SET activation_token_hash = $1,
+         activation_token_expires_at = $2,
+         activation_sent_at = NOW(),
+         is_active = false,
+         updated_at = NOW()
+     WHERE id = $3`,
+    [activation.tokenHash, activation.expiresAt, account.user_id]
+  )
+
+  const { activationLink } = await sendEmployeeActivationLink({
+    first_name: account.first_name,
+    last_name: account.last_name,
+    email: account.email,
+  }, activation.token)
+
+  res.json({
+    success: true,
+    message: `Activation email sent to ${account.email}.`,
+    activationEmailSent: true,
+    ...(process.env.NODE_ENV !== 'production' ? { activationLink } : {}),
   })
 })
 

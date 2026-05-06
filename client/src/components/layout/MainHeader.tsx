@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useAuth } from '../../hooks/useAuth'
+import logoUrl from '../../Logo.png'
 
 interface MainHeaderProps {
   onMenuClick?: () => void
@@ -32,11 +33,14 @@ export default function MainHeader({ onMenuClick }: MainHeaderProps) {
         <Menu size={20} />
       </button>
       {/* Logo */}
-      <div className="flex items-center gap-2 flex-1">
-        <div className="w-[30px] h-[21px] flex items-center justify-center">
-          <span className="text-primary font-bold text-lg leading-none">ib</span>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-9 w-10 shrink-0 items-center justify-start overflow-hidden rounded-md bg-ink">
+          <img src={logoUrl} alt="iBayad logo" className="h-8 w-auto max-w-none object-contain object-left" />
         </div>
-        <span className="font-bold text-primary text-base font-montserrat tracking-tight">IBayad</span>
+        <div className="min-w-0 leading-tight">
+          <span className="block truncate text-base font-semibold text-primary">iBayad</span>
+          <span className="hidden truncate text-xs font-medium text-muted sm:block">Payroll Management System</span>
+        </div>
       </div>
 
       {/* Right actions */}

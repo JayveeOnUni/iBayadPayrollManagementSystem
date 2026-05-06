@@ -131,6 +131,19 @@ export function mapAttendanceRequest(row: Row): AttendanceRequest {
 }
 
 export function mapLeave(row: Row): LeaveApplication {
+  const documents = Array.isArray(row.documents)
+    ? row.documents.map((doc) => {
+        const item = doc as Row
+        return {
+          id: str(item.id),
+          documentType: str(item.document_type ?? item.documentType),
+          fileName: str(item.file_name ?? item.fileName),
+          fileUrl: str(item.file_url ?? item.fileUrl),
+          status: str(item.status, 'pending'),
+        }
+      })
+    : undefined
+
   return {
     id: str(row.id),
     employeeId: str(row.employee_id ?? row.employeeId),
@@ -146,7 +159,16 @@ export function mapLeave(row: Row): LeaveApplication {
     startDate: str(row.start_date ?? row.startDate),
     endDate: str(row.end_date ?? row.endDate),
     totalDays: num(row.total_days ?? row.totalDays),
+    dayCountType: (row.day_count_type ?? row.dayCountType) as LeaveApplication['dayCountType'],
     reason: str(row.reason),
+    emergencyReasonCategory: row.emergency_reason_category ? str(row.emergency_reason_category) : undefined,
+    unpaidDays: num(row.unpaid_days ?? row.unpaidDays),
+    deductedSickDays: num(row.deducted_sick_days ?? row.deductedSickDays),
+    deductedVacationDays: num(row.deducted_vacation_days ?? row.deductedVacationDays),
+    payrollImpactStatus: row.payroll_impact_status ? str(row.payroll_impact_status) : undefined,
+    attendanceImpactStatus: row.attendance_impact_status ? str(row.attendance_impact_status) : undefined,
+    validationWarnings: Array.isArray(row.validation_warnings) ? row.validation_warnings.map(String) : undefined,
+    documents,
     status: (row.status ?? 'pending') as LeaveApplication['status'],
     approvedBy: row.reviewed_by ? str(row.reviewed_by) : undefined,
     approvedAt: row.reviewed_at ? str(row.reviewed_at) : undefined,

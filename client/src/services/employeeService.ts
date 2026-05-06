@@ -40,6 +40,9 @@ export const employeeService = {
     api.put<ApiResponse<Record<string, unknown>>>(`/employees/${id}/activate`)
       .then((res) => ({ ...res, data: mapEmployee(res.data) })),
 
+  resendActivation: (id: string) =>
+    api.post<ApiResponse<void>>(`/employees/${id}/resend-activation`),
+
   delete: (id: string) =>
     api.delete<ApiResponse<void>>(`/employees/${id}`),
 

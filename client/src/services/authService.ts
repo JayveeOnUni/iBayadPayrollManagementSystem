@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { ApiResponse, AuthResponse, LoginCredentials, User } from '../types'
+import type { ActivationTokenInfo, ApiResponse, AuthResponse, LoginCredentials, User } from '../types'
 
 export const authService = {
   login: (credentials: LoginCredentials) =>
@@ -16,6 +16,12 @@ export const authService = {
 
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put<void>('/auth/change-password', { currentPassword, newPassword }),
+
+  verifyActivationToken: (token: string) =>
+    api.post<ApiResponse<ActivationTokenInfo>>('/auth/activate/verify', { token }).then((res) => res.data),
+
+  activateAccount: (token: string, password: string) =>
+    api.post<ApiResponse<void>>('/auth/activate', { token, password }),
 
   forgotPassword: (email: string) =>
     api.post<void>('/auth/forgot-password', { email }),

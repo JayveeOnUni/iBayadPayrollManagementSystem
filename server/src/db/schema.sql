@@ -119,9 +119,13 @@ CREATE TABLE users (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   employee_id           UUID UNIQUE REFERENCES employees(id) ON DELETE SET NULL,
   email                 VARCHAR(255) UNIQUE NOT NULL,
-  password_hash         TEXT NOT NULL,
+  password_hash         TEXT,
   role                  user_role NOT NULL DEFAULT 'employee',
   is_active             BOOLEAN DEFAULT true,
+  activation_token_hash TEXT,
+  activation_token_expires_at TIMESTAMPTZ,
+  activation_sent_at    TIMESTAMPTZ,
+  activated_at          TIMESTAMPTZ,
   refresh_token_hash    TEXT,
   last_login_at         TIMESTAMPTZ,
   two_factor_enabled    BOOLEAN DEFAULT false,
@@ -333,6 +337,7 @@ CREATE TABLE system_settings (
 
 CREATE INDEX idx_employees_department ON employees(department_id);
 CREATE INDEX idx_employees_status ON employees(employment_status);
+CREATE INDEX idx_users_activation_token_hash ON users(activation_token_hash) WHERE activation_token_hash IS NOT NULL;
 CREATE INDEX idx_attendance_employee_date ON attendance(employee_id, date);
 CREATE INDEX idx_attendance_date ON attendance(date);
 CREATE INDEX idx_leave_requests_employee ON leave_requests(employee_id);
