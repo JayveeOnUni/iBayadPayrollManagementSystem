@@ -9,6 +9,7 @@ import payrollRoutes from './routes/payroll'
 import attendanceRoutes from './routes/attendance'
 import leaveRoutes from './routes/leave'
 import adminLeaveRoutes from './routes/adminLeaves'
+import adminDashboardRoutes from './routes/adminDashboard'
 
 // Middleware
 import { errorHandler } from './middleware/errorHandler'
@@ -43,6 +44,7 @@ app.use('/api/payroll', payrollRoutes)
 app.use('/api/attendance', attendanceRoutes)
 app.use('/api/leave', leaveRoutes)
 app.use('/api/leaves', leaveRoutes)
+app.use('/api/admin/dashboard', adminDashboardRoutes)
 app.use('/api/admin/leaves', adminLeaveRoutes)
 
 // Health check

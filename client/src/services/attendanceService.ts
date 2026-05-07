@@ -1,6 +1,12 @@
 import { api } from './api'
-import type { AttendanceRecord, AttendanceRequest, ApiResponse } from '../types'
-import { mapAttendance, mapAttendanceRequest } from './mappers'
+import type { AttendanceRecord, AttendanceRequest, ApiResponse, OffsetBalance, OffsetCredit, OffsetUsage } from '../types'
+import {
+  mapAttendance,
+  mapAttendanceRequest,
+  mapOffsetBalance,
+  mapOffsetCredit,
+  mapOffsetUsage,
+} from './mappers'
 
 export interface AttendanceListParams {
   page?: number
@@ -86,7 +92,47 @@ export const attendanceService = {
       totalPresent: number
       totalAbsent: number
       totalLate: number
-      totalOvertimeHours: number
+      totalOffsetEarnedHours: number
+      totalOffsetUsedHours: number
       totalHoursWorked: number
     }>>(`/attendance/summary`, { employeeId, month, year }),
+
+  getMyOffsetBalance: () =>
+    api.get<ApiResponse<Record<string, unknown> | null>>('/attendance/my-offset-balance')
+      .then((res) => ({ ...res, data: res.data ? mapOffsetBalance(res.data) : null })),
+
+  listOffsetBalances: (params?: Record<string, string | number | boolean>) =>
+    api.get<ApiResponse<Record<string, unknown>[]>>('/attendance/offset-balances', params)
+      .then((res) => ({ ...res, data: res.data.map(mapOffsetBalance) as OffsetBalance[] })),
+
+  listOffsetCredits: (params?: Record<string, string | number | boolean>) =>
+    api.get<ApiResponse<Record<string, unknown>[]>>('/attendance/offset-credits', params)
+      .then((res) => ({ ...res, data: res.data.map(mapOffsetCredit) as OffsetCredit[] })),
+
+  approveOffsetCredit: (id: string, remarks?: string) =>
+    api.put<ApiResponse<Record<string, unknown>>>(`/attendance/offset-credits/${id}`, { action: 'approve', remarks })
+      .then((res) => ({ ...res, data: mapOffsetCredit(res.data) })),
+
+  rejectOffsetCredit: (id: string, remarks?: string) =>
+    api.put<ApiResponse<Record<string, unknown>>>(`/attendance/offset-credits/${id}`, { action: 'reject', remarks })
+      .then((res) => ({ ...res, data: mapOffsetCredit(res.data) })),
+
+  listOffsetUsages: (params?: Record<string, string | number | boolean>) =>
+    api.get<ApiResponse<Record<string, unknown>[]>>('/attendance/offset-usages', params)
+      .then((res) => ({ ...res, data: res.data.map(mapOffsetUsage) as OffsetUsage[] })),
+
+  submitOffsetUsage: (data: { usageDate: string; requestedMinutes: number; reason: string; employeeId?: string }) =>
+    api.post<ApiResponse<Record<string, unknown>>>('/attendance/offset-usages', data)
+      .then((res) => ({ ...res, data: mapOffsetUsage(res.data) })),
+
+  approveOffsetUsage: (id: string, approvedMinutes?: number, remarks?: string) =>
+    api.put<ApiResponse<Record<string, unknown>>>(`/attendance/offset-usages/${id}`, { action: 'approve', approvedMinutes, remarks })
+      .then((res) => ({ ...res, data: mapOffsetUsage(res.data) })),
+
+  rejectOffsetUsage: (id: string, remarks?: string) =>
+    api.put<ApiResponse<Record<string, unknown>>>(`/attendance/offset-usages/${id}`, { action: 'reject', remarks })
+      .then((res) => ({ ...res, data: mapOffsetUsage(res.data) })),
+
+  createOffsetAdjustment: (data: { employeeId: string; minutes: number; reason: string; date?: string }) =>
+    api.post<ApiResponse<Record<string, unknown>>>('/attendance/offset-adjustments', data),
 }

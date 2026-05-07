@@ -12,8 +12,8 @@ interface AttendanceSettingsForm {
   allowMobileClockIn: boolean
   geofencingEnabled: boolean
   geofenceRadiusMeters: number
-  overtimeRequiresApproval: boolean
-  minOvertimeMinutes: number
+  offsetRequiresApproval: boolean
+  minOffsetCreditMinutes: number
 }
 
 export default function AttendanceSettingsPage() {
@@ -26,8 +26,8 @@ export default function AttendanceSettingsPage() {
       allowMobileClockIn: true,
       geofencingEnabled: false,
       geofenceRadiusMeters: 100,
-      overtimeRequiresApproval: true,
-      minOvertimeMinutes: 30,
+      offsetRequiresApproval: true,
+      minOffsetCreditMinutes: 1,
     },
   })
 
@@ -92,19 +92,19 @@ export default function AttendanceSettingsPage() {
         </Card>
 
         <Card>
-          <h3 className="text-sm font-semibold text-ink mb-5">Overtime Rules</h3>
+          <h3 className="text-sm font-semibold text-ink mb-5">Offset Credit Rules</h3>
           <div className="flex items-center justify-between py-3 border-b border-border mb-4">
             <div>
-              <p className="text-sm font-medium text-ink">Overtime Requires Approval</p>
-              <p className="text-xs text-muted">Employees must get overtime pre-approved by their supervisor</p>
+              <p className="text-sm font-medium text-ink">Offset Requires Approval</p>
+              <p className="text-xs text-muted">Earned credits and usage requests need admin approval</p>
             </div>
-            <input type="checkbox" {...register('overtimeRequiresApproval')} className="w-5 h-5 accent-brand" />
+            <input type="checkbox" {...register('offsetRequiresApproval')} className="w-5 h-5 accent-brand" />
           </div>
           <Input
-            label="Minimum Overtime (minutes)"
+            label="Minimum Offset Credit (minutes)"
             type="number"
-            hint="Minimum minutes to qualify for overtime pay"
-            {...register('minOvertimeMinutes', { valueAsNumber: true })}
+            hint="Minimum excess minutes to create a pending offset credit"
+            {...register('minOffsetCreditMinutes', { valueAsNumber: true })}
           />
         </Card>
 

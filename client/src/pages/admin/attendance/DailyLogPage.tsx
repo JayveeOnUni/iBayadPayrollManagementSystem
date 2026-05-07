@@ -22,6 +22,12 @@ const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'neutral'
   holiday: 'info',
 }
 
+function minutesLabel(minutes: number) {
+  if (minutes <= 0) return '—'
+  const hours = minutes / 60
+  return `${Number.isInteger(hours) ? hours.toFixed(0) : hours.toFixed(1)}h`
+}
+
 export default function DailyLogPage() {
   const [selectedDate, setSelectedDate] = useState(today)
   const [logs, setLogs] = useState<AttendanceRecord[]>([])
@@ -57,14 +63,18 @@ export default function DailyLogPage() {
 
   const exportLogs = () => {
     const csv = [
-      ['Employee', 'Date', 'Time In', 'Time Out', 'Hours', 'Late Minutes', 'Status'],
+      ['Employee', 'Date', 'Shift', 'Time In', 'Time Out', 'Hours', 'Late Minutes', 'Excess Minutes', 'Offset Earned', 'Offset Used', 'Status'],
       ...filteredLogs.map((log) => [
         log.employee ? `${log.employee.firstName} ${log.employee.lastName}` : log.employeeId,
         log.date,
+        log.scheduledShiftName ?? '',
         log.timeIn ?? '',
         log.timeOut ?? '',
         String(log.hoursWorked),
         String(log.lateMinutes),
+        String(log.excessMinutes),
+        String(log.offsetEarnedMinutes),
+        String(log.offsetUsedMinutes),
         log.status,
       ]),
     ].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -171,6 +181,13 @@ export default function DailyLogPage() {
               ),
             },
             {
+              key: 'shift',
+              header: 'Shift',
+              render: (row) => (
+                <span className="text-sm">{row.scheduledShiftName ?? '—'}</span>
+              ),
+            },
+            {
               key: 'timeIn',
               header: 'Time In',
               render: (row) => (
@@ -196,6 +213,20 @@ export default function DailyLogPage() {
                 <span className={`text-sm ${row.lateMinutes > 0 ? 'font-medium text-warning' : 'text-muted'}`}>
                   {row.lateMinutes > 0 ? `${row.lateMinutes} min` : '—'}
                 </span>
+              ),
+            },
+            {
+              key: 'offsetEarnedMinutes',
+              header: 'Offset Earned',
+              render: (row) => (
+                <span className="text-sm text-muted">{minutesLabel(row.offsetEarnedMinutes)}</span>
+              ),
+            },
+            {
+              key: 'offsetUsedMinutes',
+              header: 'Offset Used',
+              render: (row) => (
+                <span className="text-sm text-muted">{minutesLabel(row.offsetUsedMinutes)}</span>
               ),
             },
             {

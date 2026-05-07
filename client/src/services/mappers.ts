@@ -3,8 +3,13 @@ import type {
   AttendanceRequest,
   Employee,
   LeaveApplication,
+  PayrollAuditEntry,
+  OffsetBalance,
+  OffsetCredit,
+  OffsetUsage,
   PayrollPeriod,
   PayrollRecord,
+  PayrollWarning,
 } from '../types'
 
 type Row = Record<string, unknown>
@@ -94,12 +99,93 @@ export function mapAttendance(row: Row): AttendanceRecord {
     date: str(row.date),
     timeIn: row.time_in ? str(row.time_in) : undefined,
     timeOut: row.time_out ? str(row.time_out) : undefined,
+    scheduledShiftId: row.scheduled_shift_id ? str(row.scheduled_shift_id) : undefined,
+    scheduledShiftName: row.scheduled_shift_name ? str(row.scheduled_shift_name) : undefined,
+    scheduledStart: row.scheduled_start ? str(row.scheduled_start) : undefined,
+    scheduledEnd: row.scheduled_end ? str(row.scheduled_end) : undefined,
+    requiredWorkMinutes: num(row.required_work_minutes ?? row.requiredWorkMinutes),
+    actualRenderedMinutes: num(row.actual_rendered_minutes ?? row.actualRenderedMinutes, minutes),
     hoursWorked: num(row.hours_worked ?? row.hoursWorked, minutes ? minutes / 60 : 0),
     overtimeHours: num(row.overtime_hours ?? row.overtimeHours),
+    excessMinutes: num(row.excess_minutes ?? row.excessMinutes),
+    offsetEarnedMinutes: num(row.offset_earned_minutes ?? row.offsetEarnedMinutes),
+    offsetUsedMinutes: num(row.offset_used_minutes ?? row.offsetUsedMinutes),
     lateMinutes: num(row.late_minutes ?? row.lateMinutes),
     undertimeMinutes: num(row.undertime_minutes ?? row.undertimeMinutes),
     status: (row.status ?? 'present') as AttendanceRecord['status'],
     notes: row.remarks ? str(row.remarks) : undefined,
+    createdAt: str(row.created_at ?? row.createdAt),
+    updatedAt: str(row.updated_at ?? row.updatedAt),
+  }
+}
+
+export function mapOffsetBalance(row: Row): OffsetBalance {
+  return {
+    employeeId: str(row.employee_id ?? row.employeeId),
+    employee: row.first_name
+      ? {
+          id: str(row.employee_id ?? row.employeeId),
+          firstName: str(row.first_name),
+          lastName: str(row.last_name),
+          employeeNumber: str(row.employee_number),
+        }
+      : undefined,
+    pendingMinutes: num(row.pending_minutes ?? row.pendingMinutes),
+    availableMinutes: num(row.available_minutes ?? row.availableMinutes),
+    usedMinutes: num(row.used_minutes ?? row.usedMinutes),
+    pendingUsageMinutes: num(row.pending_usage_minutes ?? row.pendingUsageMinutes),
+  }
+}
+
+export function mapOffsetCredit(row: Row): OffsetCredit {
+  return {
+    id: str(row.id),
+    employeeId: str(row.employee_id ?? row.employeeId),
+    employee: row.first_name
+      ? {
+          id: str(row.employee_id ?? row.employeeId),
+          firstName: str(row.first_name),
+          lastName: str(row.last_name),
+          employeeNumber: str(row.employee_number),
+        }
+      : undefined,
+    attendanceId: row.attendance_id ? str(row.attendance_id) : undefined,
+    dateEarned: str(row.date_earned ?? row.dateEarned),
+    source: str(row.source, 'excess_hours') as OffsetCredit['source'],
+    minutesEarned: num(row.minutes_earned ?? row.minutesEarned),
+    minutesRemaining: num(row.minutes_remaining ?? row.minutesRemaining),
+    status: str(row.status, 'pending') as OffsetCredit['status'],
+    reason: row.reason ? str(row.reason) : undefined,
+    reviewRemarks: row.review_remarks ? str(row.review_remarks) : undefined,
+    reviewedBy: row.reviewed_by ? str(row.reviewed_by) : undefined,
+    reviewedAt: row.reviewed_at ? str(row.reviewed_at) : undefined,
+    createdAt: str(row.created_at ?? row.createdAt),
+    updatedAt: str(row.updated_at ?? row.updatedAt),
+  }
+}
+
+export function mapOffsetUsage(row: Row): OffsetUsage {
+  return {
+    id: str(row.id),
+    employeeId: str(row.employee_id ?? row.employeeId),
+    employee: row.first_name
+      ? {
+          id: str(row.employee_id ?? row.employeeId),
+          firstName: str(row.first_name),
+          lastName: str(row.last_name),
+          employeeNumber: str(row.employee_number),
+        }
+      : undefined,
+    attendanceId: row.attendance_id ? str(row.attendance_id) : undefined,
+    usageDate: str(row.usage_date ?? row.usageDate),
+    requestedMinutes: num(row.requested_minutes ?? row.requestedMinutes),
+    approvedMinutes: num(row.approved_minutes ?? row.approvedMinutes),
+    status: str(row.status, 'pending') as OffsetUsage['status'],
+    source: str(row.source, 'employee_request') as OffsetUsage['source'],
+    reason: str(row.reason),
+    reviewRemarks: row.review_remarks ? str(row.review_remarks) : undefined,
+    reviewedBy: row.reviewed_by ? str(row.reviewed_by) : undefined,
+    reviewedAt: row.reviewed_at ? str(row.reviewed_at) : undefined,
     createdAt: str(row.created_at ?? row.createdAt),
     updatedAt: str(row.updated_at ?? row.updatedAt),
   }
@@ -187,8 +273,48 @@ export function mapPayrollPeriod(row: Row): PayrollPeriod {
     endDate: str(row.end_date ?? row.endDate),
     payDate: str(row.pay_date ?? row.payDate),
     status: str(row.status, 'draft') as PayrollPeriod['status'],
+    approvedBy: row.approved_by ? str(row.approved_by) : undefined,
+    approvedAt: row.approved_at ? str(row.approved_at) : undefined,
+    activeEmployeeCount: num(row.active_employee_count ?? row.activeEmployeeCount),
+    recordCount: num(row.record_count ?? row.recordCount),
+    processingRecordCount: num(row.processing_record_count ?? row.processingRecordCount),
+    approvedRecordCount: num(row.approved_record_count ?? row.approvedRecordCount),
+    releasedRecordCount: num(row.released_record_count ?? row.releasedRecordCount),
+    totalGrossPay: num(row.total_gross_pay ?? row.totalGrossPay),
+    totalDeductions: num(row.total_deductions ?? row.totalDeductions),
+    totalNetPay: num(row.total_net_pay ?? row.totalNetPay),
+    negativeNetCount: num(row.negative_net_count ?? row.negativeNetCount),
+    pendingAttendanceRequestCount: num(row.pending_attendance_request_count ?? row.pendingAttendanceRequestCount),
+    pendingLeaveRequestCount: num(row.pending_leave_request_count ?? row.pendingLeaveRequestCount),
+    warningCount: num(row.warning_count ?? row.warningCount),
+    warnings: Array.isArray(row.warnings) ? row.warnings.map((warning) => mapPayrollWarning(warning as Row)) : undefined,
+    auditHistory: Array.isArray(row.audit_history ?? row.auditHistory)
+      ? ((row.audit_history ?? row.auditHistory) as Row[]).map(mapPayrollAuditEntry)
+      : undefined,
     createdAt: str(row.created_at ?? row.createdAt),
     updatedAt: str(row.updated_at ?? row.updatedAt),
+  }
+}
+
+export function mapPayrollWarning(row: Row): PayrollWarning {
+  return {
+    code: str(row.code),
+    severity: str(row.severity, 'info') as PayrollWarning['severity'],
+    message: str(row.message),
+    count: row.count == null ? undefined : num(row.count),
+  }
+}
+
+export function mapPayrollAuditEntry(row: Row): PayrollAuditEntry {
+  return {
+    id: str(row.id),
+    action: str(row.action),
+    entity: str(row.entity),
+    entityId: str(row.entity_id ?? row.entityId),
+    actorEmail: row.actor_email ? str(row.actor_email) : undefined,
+    oldValues: row.old_values ?? row.oldValues,
+    newValues: row.new_values ?? row.newValues,
+    createdAt: str(row.created_at ?? row.createdAt),
   }
 }
 
@@ -204,7 +330,7 @@ export function mapPayrollRecord(row: Row): PayrollRecord {
           startDate: str(row.start_date),
           endDate: str(row.end_date),
           payDate: str(row.pay_date),
-          status: (str(row.status) || 'draft') as PayrollPeriod['status'],
+          status: (str(row.period_status ?? row.payroll_period_status ?? row.status) || 'draft') as PayrollPeriod['status'],
           createdAt: '',
           updatedAt: '',
         }
@@ -219,6 +345,11 @@ export function mapPayrollRecord(row: Row): PayrollRecord {
     allowances: num(row.allowances),
     otherEarnings: num(row.other_earnings),
     grossPay: num(row.gross_pay),
+    excessMinutes: num(row.excess_minutes),
+    offsetEarnedMinutes: num(row.offset_earned_minutes),
+    offsetUsedMinutes: num(row.offset_used_minutes),
+    undertimeMinutes: num(row.undertime_minutes),
+    offsetBalanceMinutes: num(row.offset_balance_minutes),
     contributions: {
       sss: num(row.sss_employee),
       philhealth: num(row.phil_health_employee ?? row.philhealth_employee),

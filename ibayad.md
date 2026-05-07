@@ -37,7 +37,7 @@ Handles all payroll operations and employee management.
 
 - **Dashboard** — Overview of total payroll, headcount, upcoming pay dates
 - **Employee Management** — Add, edit, deactivate employee records
-- **Payroll Processing** — Compute salaries, overtime, deductions, and bonuses
+- **Payroll Processing** — Compute fixed salaries, deductions, bonuses, and offset visibility
 - **Attendance & Leave Management** — Track absences, late, and approved leaves that affect pay
 - **Tax & Government Contributions** — Automatic computation of SSS, PhilHealth, Pag-IBIG, and BIR withholding tax
 - **Payslip Generation** — Generate and distribute payslips (PDF) per cut-off
@@ -70,8 +70,8 @@ A dedicated **Settings** module for admins to configure and manage system-wide o
 - Configure pay frequency (weekly, semi-monthly, monthly)
 - Set cut-off dates and pay dates per period
 - Define working hours per day and work days per week
-- Toggle and configure overtime rules (e.g., rate multipliers)
-- Configure night differential hours and rate
+- Configure offset credit approval and usage rules
+- Disable night differential computation by default for active day shifts
 - Set holiday pay rules for regular and special non-working holidays
 - Enable or disable 13th month pay auto-computation
 
@@ -114,7 +114,7 @@ A dedicated **Settings** module for admins to configure and manage system-wide o
 
 ### Compensation
 - Basic salary (monthly, semi-monthly, daily, hourly rate support)
-- Overtime pay computation
+- Offset credit tracking for excess attendance hours
 - Holiday pay (regular and special non-working holidays)
 - Night differential
 - Bonuses and allowances (transportation, meal, etc.)

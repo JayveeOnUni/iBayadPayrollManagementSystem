@@ -16,7 +16,8 @@ interface AttendanceSummaryRow {
   daysAbsent: number
   daysLate: number
   totalLateMinutes: number
-  totalOvertimeHours: number
+  totalOffsetEarnedHours: number
+  totalOffsetUsedHours: number
   totalHoursWorked: number
 }
 
@@ -44,7 +45,8 @@ export default function AttendanceSummaryPage() {
             daysAbsent: Number(data.absent_days ?? 0),
             daysLate: Number(data.late_days ?? 0),
             totalLateMinutes: Number(data.total_late_minutes ?? 0),
-            totalOvertimeHours: Number(data.total_overtime_hours ?? 0),
+            totalOffsetEarnedHours: Number(data.total_offset_earned_hours ?? 0),
+            totalOffsetUsedHours: Number(data.total_offset_used_hours ?? 0),
             totalHoursWorked: Math.round((Number(data.total_worked_minutes ?? 0) / 60) * 100) / 100,
           }
         }))
@@ -61,14 +63,15 @@ export default function AttendanceSummaryPage() {
 
   const exportSummary = () => {
     const csv = [
-      ['Employee', 'Present', 'Absent', 'Late Days', 'Late Minutes', 'Overtime Hours', 'Total Hours'],
+      ['Employee', 'Present', 'Absent', 'Late Days', 'Late Minutes', 'Offset Earned Hours', 'Offset Used Hours', 'Total Hours'],
       ...summary.map((row) => [
         row.name,
         String(row.daysPresent),
         String(row.daysAbsent),
         String(row.daysLate),
         String(row.totalLateMinutes),
-        String(row.totalOvertimeHours),
+        String(row.totalOffsetEarnedHours),
+        String(row.totalOffsetUsedHours),
         String(row.totalHoursWorked),
       ]),
     ].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -170,11 +173,20 @@ export default function AttendanceSummaryPage() {
               ),
             },
             {
-              key: 'totalOvertimeHours',
-              header: 'Overtime',
+              key: 'totalOffsetEarnedHours',
+              header: 'Offset Earned',
               render: (row) => (
                 <span className="text-sm">
-                  {row.totalOvertimeHours > 0 ? `${row.totalOvertimeHours}h` : '—'}
+                  {row.totalOffsetEarnedHours > 0 ? `${row.totalOffsetEarnedHours}h` : '—'}
+                </span>
+              ),
+            },
+            {
+              key: 'totalOffsetUsedHours',
+              header: 'Offset Used',
+              render: (row) => (
+                <span className="text-sm">
+                  {row.totalOffsetUsedHours > 0 ? `${row.totalOffsetUsedHours}h` : '—'}
                 </span>
               ),
             },

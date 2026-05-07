@@ -13,10 +13,9 @@ interface PayrollSettingsForm {
   semiMonthlyPayDay2: number
   workingHoursPerDay: number
   workingDaysPerWeek: number
-  overtimeRate: number
-  nightDifferentialStartTime: string
-  nightDifferentialEndTime: string
-  nightDifferentialRate: number
+  offsetCreditEnabled: boolean
+  offsetRequiresApproval: boolean
+  nightDifferentialEnabled: boolean
   regularHolidayRate: number
   specialHolidayRate: number
   thirteenthMonthEnabled: boolean
@@ -33,10 +32,9 @@ export default function PayrollSettingsPage() {
       semiMonthlyPayDay2: 5,
       workingHoursPerDay: 8,
       workingDaysPerWeek: 5,
-      overtimeRate: 1.25,
-      nightDifferentialStartTime: '22:00',
-      nightDifferentialEndTime: '06:00',
-      nightDifferentialRate: 0.10,
+      offsetCreditEnabled: true,
+      offsetRequiresApproval: true,
+      nightDifferentialEnabled: false,
       regularHolidayRate: 2.00,
       specialHolidayRate: 1.30,
       thirteenthMonthEnabled: true,
@@ -52,7 +50,7 @@ export default function PayrollSettingsPage() {
     <div className="space-y-5 max-w-3xl">
       <div>
         <h2 className="text-xl font-bold text-ink">Payroll Settings</h2>
-        <p className="text-sm text-muted mt-0.5">Configure pay frequency, work hours, overtime, and holiday rules</p>
+        <p className="text-sm text-muted mt-0.5">Configure pay frequency, work hours, offset visibility, and holiday rules</p>
       </div>
 
       {message && <div className="text-sm text-ink bg-slate-50 border border-border rounded-lg px-4 py-3">{message}</div>}
@@ -104,14 +102,25 @@ export default function PayrollSettingsPage() {
           </div>
         </Card>
 
-        {/* Overtime & Rates */}
+        {/* Offset & Rates */}
         <Card>
-          <h3 className="text-sm font-semibold text-ink mb-5">Pay Rate Multipliers</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">Overtime Rate</label>
-              <Input type="number" step="0.01" {...register('overtimeRate', { valueAsNumber: true })} hint="e.g. 1.25 = 125%" />
-            </div>
+          <h3 className="text-sm font-semibold text-ink mb-5">Payroll Treatment</h3>
+          <div className="space-y-4 mb-5">
+            {[
+              { key: 'offsetCreditEnabled' as const, label: 'Enable Offset Credits', desc: 'Excess attendance minutes are tracked as offset credits.' },
+              { key: 'offsetRequiresApproval' as const, label: 'Require Offset Approval', desc: 'Credits and usage need admin approval before they affect balances.' },
+              { key: 'nightDifferentialEnabled' as const, label: 'Enable Night Differential', desc: 'Disabled for the current 8:00 AM and 9:00 AM active shifts.' },
+            ].map((item) => (
+              <div key={item.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <div>
+                  <p className="text-sm font-medium text-ink">{item.label}</p>
+                  <p className="text-xs text-muted">{item.desc}</p>
+                </div>
+                <input type="checkbox" {...register(item.key)} className="w-5 h-5 accent-brand" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-ink">Regular Holiday Rate</label>
               <Input type="number" step="0.01" {...register('regularHolidayRate', { valueAsNumber: true })} hint="e.g. 2.00 = 200%" />
@@ -119,19 +128,6 @@ export default function PayrollSettingsPage() {
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-ink">Special Holiday Rate</label>
               <Input type="number" step="0.01" {...register('specialHolidayRate', { valueAsNumber: true })} hint="e.g. 1.30 = 130%" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Night Differential */}
-        <Card>
-          <h3 className="text-sm font-semibold text-ink mb-5">Night Differential</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input label="Start Time" type="time" {...register('nightDifferentialStartTime')} />
-            <Input label="End Time" type="time" {...register('nightDifferentialEndTime')} />
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-ink">Rate (additional)</label>
-              <Input type="number" step="0.01" {...register('nightDifferentialRate', { valueAsNumber: true })} hint="e.g. 0.10 = +10%" />
             </div>
           </div>
         </Card>

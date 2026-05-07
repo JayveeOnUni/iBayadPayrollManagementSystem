@@ -53,10 +53,8 @@ export interface PayrollComputationResult {
 
 const WORKING_DAYS_PER_MONTH = 22
 const WORKING_HOURS_PER_DAY = 8
-const OVERTIME_RATE = 1.25
 const REGULAR_HOLIDAY_RATE = 2.0
 const SPECIAL_HOLIDAY_RATE = 1.30
-const NIGHT_DIFFERENTIAL_RATE = 0.10
 
 /**
  * Compute full payroll for a single employee for a given period.
@@ -66,10 +64,8 @@ export function computePayroll(input: PayrollComputationInput): PayrollComputati
     employee,
     period,
     attendanceRecords,
-    overtimeHours,
     holidayDays,
     specialHolidayDays,
-    nightDifferentialHours,
     allowances = 0,
     loanDeductions = 0,
     otherDeductions = 0,
@@ -96,17 +92,16 @@ export function computePayroll(input: PayrollComputationInput): PayrollComputati
 
   // Earnings
   const basicPay = round2((monthlyRate / divisor) - (absentDays * dailyRate))
-  const overtimePay = round2(overtimeHours * hourlyRate * OVERTIME_RATE)
+  const overtimePay = 0
   const holidayPay = round2(holidayDays * dailyRate * (REGULAR_HOLIDAY_RATE - 1))
   const specialHolidayPay = round2(specialHolidayDays * dailyRate * (SPECIAL_HOLIDAY_RATE - 1))
-  const nightDifferential = round2(nightDifferentialHours * hourlyRate * NIGHT_DIFFERENTIAL_RATE)
+  const nightDifferential = 0
 
   // 13th month pay (December or on separation) – simplified: 1/12 of basic per month
   const thirteenthMonthPay = input.thirteenthMonthPay ?? 0
 
   const grossPay = round2(
-    basicPay + overtimePay + holidayPay + specialHolidayPay + nightDifferential +
-    thirteenthMonthPay + allowances + otherEarnings
+    basicPay + holidayPay + specialHolidayPay + thirteenthMonthPay + allowances + otherEarnings
   )
 
   // Government contributions (based on monthly salary, then halved if semi-monthly)
@@ -155,7 +150,7 @@ export function computePayroll(input: PayrollComputationInput): PayrollComputati
 
     daysWorked,
     hoursWorked: totalHoursWorked,
-    overtimeHours,
+    overtimeHours: 0,
     absentDays,
     lateDays,
     lateMinutes: totalLateMinutes,

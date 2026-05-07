@@ -8,9 +8,8 @@ import Input from '../../../components/ui/Input'
 import type { Shift } from '../../../types'
 
 const mockShifts: Shift[] = [
-  { id: '1', name: 'Morning Shift', startTime: '08:00', endTime: '17:00', breakMinutes: 60, workingHoursPerDay: 8, isNightShift: false, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-  { id: '2', name: 'Mid Shift', startTime: '12:00', endTime: '21:00', breakMinutes: 60, workingHoursPerDay: 8, isNightShift: false, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-  { id: '3', name: 'Night Shift', startTime: '22:00', endTime: '06:00', breakMinutes: 60, workingHoursPerDay: 8, isNightShift: true, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { id: '1', name: 'Regular Shift', startTime: '08:00', endTime: '17:00', breakMinutes: 60, workingHoursPerDay: 8, isNightShift: false, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { id: '2', name: 'Mid Shift', startTime: '09:00', endTime: '18:00', breakMinutes: 60, workingHoursPerDay: 8, isNightShift: false, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
 ]
 
 function formatShiftTime(time: string): string {
@@ -74,9 +73,9 @@ export default function ShiftsPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-ink">{shift.name}</h3>
-                  {shift.isNightShift && (
-                    <Badge variant="info" size="sm">Night Differential</Badge>
-                  )}
+                  <Badge variant={shift.isNightShift ? 'info' : 'success'} size="sm">
+                    {shift.isNightShift ? 'Inactive' : 'Active'}
+                  </Badge>
                 </div>
               </div>
               <Button size="xs" variant="ghost" leftIcon={<Edit2 size={12} />} onClick={() => openShiftModal(shift)}>Edit</Button>

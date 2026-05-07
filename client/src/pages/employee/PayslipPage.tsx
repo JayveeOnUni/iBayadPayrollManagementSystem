@@ -9,6 +9,11 @@ import { formatPeso } from '../../utils/taxComputation'
 import { payrollService } from '../../services/payrollService'
 import type { PayrollRecord } from '../../types'
 
+function offsetHours(minutes: number) {
+  const hours = (minutes || 0) / 60
+  return `${Number.isInteger(hours) ? hours.toFixed(0) : hours.toFixed(1)}h`
+}
+
 export default function PayslipPage() {
   const [payslips, setPayslips] = useState<PayrollRecord[]>([])
   const [selectedPayslip, setSelectedPayslip] = useState<PayrollRecord | null>(null)
@@ -104,7 +109,7 @@ export default function PayslipPage() {
                   </div>
                 </div>
                 <Button size="sm" variant="outline" leftIcon={<Download size={14} />} onClick={downloadPayslip}>
-                  Download PDF
+                  Download Payslip
                 </Button>
               </div>
 
@@ -114,9 +119,7 @@ export default function PayslipPage() {
                 <div className="space-y-2">
                   {[
                     { label: 'Basic Pay', value: selectedPayslip.basicPay },
-                    { label: 'Overtime Pay', value: selectedPayslip.overtimePay },
                     { label: 'Holiday Pay', value: selectedPayslip.holidayPay },
-                    { label: 'Night Differential', value: selectedPayslip.nightDifferential },
                     { label: 'Allowances', value: selectedPayslip.allowances },
                   ].map((row) => (
                     <div key={row.label} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
@@ -128,6 +131,22 @@ export default function PayslipPage() {
                     <span className="text-ink">Gross Pay</span>
                     <span className="text-ink">{formatPeso(selectedPayslip.grossPay)}</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Time Offset</p>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Offset Earned', value: offsetHours(selectedPayslip.offsetEarnedMinutes) },
+                    { label: 'Offset Used', value: offsetHours(selectedPayslip.offsetUsedMinutes) },
+                    { label: 'Offset Balance', value: offsetHours(selectedPayslip.offsetBalanceMinutes) },
+                  ].map((row) => (
+                    <div key={row.label} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
+                      <span className="text-muted">{row.label}</span>
+                      <span className="text-ink font-medium">{row.value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 

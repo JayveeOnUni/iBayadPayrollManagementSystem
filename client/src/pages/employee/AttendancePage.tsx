@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
@@ -9,7 +9,7 @@ import Textarea from '../../components/ui/Textarea'
 import { FeedbackMessage, PageHeader } from '../../components/ui/Page'
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, formatTime } from '../../utils/dateHelpers'
 import { attendanceService } from '../../services/attendanceService'
-import type { AttendanceRecord } from '../../types'
+import type { AttendanceRecord, OffsetBalance } from '../../types'
 
 const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
   present: 'success',
@@ -18,10 +18,18 @@ const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'info'> =
   on_leave: 'info',
 }
 
+function minutesLabel(minutes: number) {
+  if (minutes <= 0) return '0h'
+  const hours = minutes / 60
+  return `${Number.isInteger(hours) ? hours.toFixed(0) : hours.toFixed(1)}h`
+}
+
 export default function AttendancePage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isOffsetModalOpen, setIsOffsetModalOpen] = useState(false)
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
+  const [offsetBalance, setOffsetBalance] = useState<OffsetBalance | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -31,17 +39,26 @@ export default function AttendancePage() {
     requestedTimeOut: '',
     reason: '',
   })
+  const [offsetForm, setOffsetForm] = useState({
+    usageDate: new Date().toISOString().slice(0, 10),
+    requestedMinutes: 120,
+    reason: '',
+  })
 
   useEffect(() => {
     const loadAttendance = async () => {
       try {
         setIsLoading(true)
         setMessage(null)
-        const res = await attendanceService.getMyAttendance({
+        const [res, balanceRes] = await Promise.all([
+          attendanceService.getMyAttendance({
           startDate: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
           endDate: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
-        })
+          }),
+          attendanceService.getMyOffsetBalance(),
+        ])
         setAttendance(res.data)
+        setOffsetBalance(balanceRes.data)
       } catch (err) {
         setMessage(err instanceof Error ? err.message : 'Unable to load attendance.')
       } finally {
@@ -55,6 +72,7 @@ export default function AttendancePage() {
   const present = useMemo(() => attendance.filter((a) => a.status === 'present' || a.status === 'late').length, [attendance])
   const absent = useMemo(() => attendance.filter((a) => a.status === 'absent').length, [attendance])
   const late = useMemo(() => attendance.filter((a) => a.status === 'late').length, [attendance])
+  const offsetEarned = useMemo(() => attendance.reduce((sum, a) => sum + a.offsetEarnedMinutes, 0), [attendance])
 
   const submitCorrection = async () => {
     try {
@@ -77,15 +95,41 @@ export default function AttendancePage() {
     }
   }
 
+  const submitOffsetUsage = async () => {
+    try {
+      setIsSubmitting(true)
+      setMessage(null)
+      await attendanceService.submitOffsetUsage({
+        usageDate: offsetForm.usageDate,
+        requestedMinutes: offsetForm.requestedMinutes,
+        reason: offsetForm.reason,
+      })
+      setIsOffsetModalOpen(false)
+      setOffsetForm({ usageDate: new Date().toISOString().slice(0, 10), requestedMinutes: 120, reason: '' })
+      const balanceRes = await attendanceService.getMyOffsetBalance()
+      setOffsetBalance(balanceRes.data)
+      setMessage('Time offset request submitted for review.')
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Unable to submit time offset request.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="My Attendance"
         subtitle="Track your daily time in and time out."
         actions={
+          <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" leftIcon={<Clock size={14} />} onClick={() => setIsOffsetModalOpen(true)}>
+            Request Time Offset
+          </Button>
           <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsModalOpen(true)}>
             Request Correction
           </Button>
+          </div>
         }
       />
 
@@ -118,11 +162,13 @@ export default function AttendancePage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {[
             { label: 'Days Present', value: present, color: 'text-success' },
             { label: 'Days Absent', value: absent, color: 'text-danger' },
             { label: 'Late Days', value: late, color: 'text-warning' },
+            { label: 'Offset Available', value: minutesLabel(offsetBalance?.availableMinutes ?? 0), color: 'text-brand' },
+            { label: 'Offset Earned', value: minutesLabel(offsetEarned), color: 'text-info' },
           ].map((s) => (
             <div key={s.label} className="rounded-lg bg-neutral-20 p-3 text-center">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -153,8 +199,11 @@ export default function AttendancePage() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {a.overtimeHours > 0 && (
-                  <span className="text-xs text-brand font-medium">+{a.overtimeHours}h OT</span>
+                {a.offsetEarnedMinutes > 0 && (
+                  <span className="text-xs text-brand font-medium">+{minutesLabel(a.offsetEarnedMinutes)} offset</span>
+                )}
+                {a.offsetUsedMinutes > 0 && (
+                  <span className="text-xs text-info font-medium">-{minutesLabel(a.offsetUsedMinutes)} used</span>
                 )}
                 <Badge variant={statusVariant[a.status]} dot>
                   {a.status}
@@ -205,6 +254,42 @@ export default function AttendancePage() {
             value={requestForm.reason}
             onChange={(e) => setRequestForm((f) => ({ ...f, reason: e.target.value }))}
             placeholder="Please explain why you need this correction..."
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isOffsetModalOpen}
+        onClose={() => setIsOffsetModalOpen(false)}
+        title="Request Time Offset"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setIsOffsetModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button onClick={submitOffsetUsage} isLoading={isSubmitting}>Submit Request</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Usage Date"
+            type="date"
+            value={offsetForm.usageDate}
+            onChange={(e) => setOffsetForm((f) => ({ ...f, usageDate: e.target.value }))}
+          />
+          <Input
+            label="Offset Minutes"
+            type="number"
+            min={1}
+            value={offsetForm.requestedMinutes}
+            onChange={(e) => setOffsetForm((f) => ({ ...f, requestedMinutes: Number(e.target.value) }))}
+          />
+          <Textarea
+            label="Reason"
+            rows={3}
+            value={offsetForm.reason}
+            onChange={(e) => setOffsetForm((f) => ({ ...f, reason: e.target.value }))}
+            placeholder="Describe how the offset will be used..."
           />
         </div>
       </Modal>

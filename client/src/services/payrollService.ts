@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { PayrollPeriod, PayrollRecord, ApiResponse } from '../types'
+import type { PayrollPeriod, ApiResponse, PaginatedResponse, PayrollWarning } from '../types'
 import { useAuthStore } from '../store/authStore'
 import { mapPayrollPeriod, mapPayrollRecord } from './mappers'
 
@@ -9,27 +9,42 @@ export interface PayrollListParams {
   periodId?: string
   employeeId?: string
   status?: string
+  year?: string | number
+  search?: string
+}
+
+type RawRow = Record<string, unknown>
+type RawPaginated<T> = ApiResponse<T[]> & Partial<Pick<PaginatedResponse<T>, 'total' | 'page' | 'limit' | 'totalPages'>>
+
+function normalizePaginated<T>(
+  res: RawPaginated<RawRow>,
+  params: Record<string, string | number | boolean | undefined> | undefined,
+  mapper: (row: RawRow) => T
+) {
+  const limit = Number(res.limit ?? params?.limit ?? res.data.length)
+  const total = Number(res.total ?? res.data.length)
+  return {
+    success: res.success,
+    data: res.data.map(mapper),
+    total,
+    page: Number(res.page ?? params?.page ?? 1),
+    limit,
+    totalPages: Number(res.totalPages ?? Math.max(1, Math.ceil(total / Math.max(1, limit)))),
+  }
 }
 
 export const payrollService = {
   // Periods
   listPeriods: (params?: Record<string, string | number | boolean>) =>
-    api.get<ApiResponse<Record<string, unknown>[]>>('/payroll/periods', params)
-      .then((res) => ({
-        success: res.success,
-        data: res.data.map(mapPayrollPeriod),
-        total: res.data.length,
-        page: Number(params?.page ?? 1),
-        limit: Number(params?.limit ?? res.data.length),
-        totalPages: 1,
-      })),
+    api.get<RawPaginated<RawRow>>('/payroll/periods', params)
+      .then((res) => normalizePaginated(res, params, mapPayrollPeriod)),
 
   getPeriod: (id: string) =>
-    api.get<ApiResponse<Record<string, unknown>>>(`/payroll/periods/${id}`)
+    api.get<ApiResponse<RawRow>>(`/payroll/periods/${id}`)
       .then((res) => ({ ...res, data: mapPayrollPeriod(res.data) })),
 
   createPeriod: (data: Partial<PayrollPeriod>) =>
-    api.post<ApiResponse<Record<string, unknown>>>('/payroll/periods', {
+    api.post<ApiResponse<RawRow>>('/payroll/periods', {
       name: data.name,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -42,27 +57,37 @@ export const payrollService = {
 
   // Records
   listRecords: (params?: PayrollListParams) =>
-    api.get<ApiResponse<Record<string, unknown>[]>>('/payroll/records', params as Record<string, string | number | boolean>)
-      .then((res) => ({
-        success: res.success,
-        data: res.data.map(mapPayrollRecord),
-        total: res.data.length,
-        page: params?.page ?? 1,
-        limit: params?.limit ?? res.data.length,
-        totalPages: 1,
-      })),
+    api.get<RawPaginated<RawRow>>('/payroll/records', params as Record<string, string | number | boolean>)
+      .then((res) => normalizePaginated(res, params as Record<string, string | number | boolean>, mapPayrollRecord)),
 
   getRecord: (id: string) =>
-    api.get<ApiResponse<PayrollRecord>>(`/payroll/records/${id}`),
+    api.get<ApiResponse<RawRow>>(`/payroll/records/${id}`)
+      .then((res) => ({ ...res, data: mapPayrollRecord(res.data) })),
 
   processPayroll: (periodId: string) =>
-    api.post<ApiResponse<{ processed: number; errors: Array<{ employeeId: string; error: string }>; message: string }>>('/payroll/process', { payrollPeriodId: periodId }),
+    api.post<ApiResponse<{
+      period: RawRow
+      processed: number
+      errors: Array<{ employeeId: string; error: string }>
+      warnings: PayrollWarning[]
+      warningCount: number
+      message: string
+    }>>('/payroll/process', { payrollPeriodId: periodId })
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          period: mapPayrollPeriod(res.data.period),
+        },
+      })),
 
   approvePayroll: (periodId: string) =>
-    api.post<ApiResponse<PayrollPeriod>>(`/payroll/periods/${periodId}/approve`),
+    api.post<ApiResponse<RawRow>>(`/payroll/periods/${periodId}/approve`)
+      .then((res) => ({ ...res, data: mapPayrollPeriod(res.data) })),
 
   markAsPaid: (periodId: string) =>
-    api.post<ApiResponse<PayrollPeriod>>(`/payroll/periods/${periodId}/release`),
+    api.post<ApiResponse<RawRow>>(`/payroll/periods/${periodId}/release`)
+      .then((res) => ({ ...res, data: mapPayrollPeriod(res.data) })),
 
   generatePayslip: (recordId: string) =>
     fetch(`/api/payroll/records/${recordId}/payslip`, {
@@ -70,13 +95,6 @@ export const payrollService = {
     }),
 
   getMyPayslips: (params?: Record<string, string | number | boolean>) =>
-    api.get<ApiResponse<Record<string, unknown>[]>>('/payroll/my-records', params)
-      .then((res) => ({
-        success: res.success,
-        data: res.data.map(mapPayrollRecord),
-        total: res.data.length,
-        page: Number(params?.page ?? 1),
-        limit: Number(params?.limit ?? res.data.length),
-        totalPages: 1,
-      })),
+    api.get<RawPaginated<RawRow>>('/payroll/my-records', params)
+      .then((res) => normalizePaginated(res, params, mapPayrollRecord)),
 }

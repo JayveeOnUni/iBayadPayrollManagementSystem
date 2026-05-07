@@ -1,46 +1,20 @@
 import { Request, Response } from 'express'
 import pool from '../utils/db'
 import { asyncHandler, createError } from '../middleware/errorHandler'
-
-interface ShiftSchedule {
-  start_time: string
-  end_time: string
-  break_minutes: number
-  work_hours: string | number
-}
-
-function localDateString(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function scheduledTime(date: Date, time: string): Date {
-  const [hours, minutes, seconds = '0'] = time.split(':')
-  const scheduled = new Date(date)
-  scheduled.setHours(Number(hours), Number(minutes), Number(seconds), 0)
-  return scheduled
-}
-
-async function getEmployeeShift(employeeId: string): Promise<ShiftSchedule> {
-  const result = await pool.query(
-    `SELECT ws.start_time, ws.end_time, ws.break_minutes, ws.work_hours
-     FROM employees e
-     LEFT JOIN work_shifts ws ON ws.id = e.shift_id AND ws.is_active = true
-     WHERE e.id = $1`,
-    [employeeId]
-  )
-
-  if (!result.rows[0]) throw createError('Employee profile not found', 404)
-
-  return {
-    start_time: result.rows[0].start_time ?? '08:00:00',
-    end_time: result.rows[0].end_time ?? '17:00:00',
-    break_minutes: Number(result.rows[0].break_minutes ?? 60),
-    work_hours: result.rows[0].work_hours ?? 8,
-  }
-}
+import {
+  calculateAttendanceMetrics,
+  createOffsetAdjustment,
+  createOffsetUsageRequest,
+  getEmployeeShift,
+  getOffsetBalances,
+  listOffsetCredits,
+  listOffsetUsages,
+  localDateString,
+  recomputeAttendanceForEmployeeDate,
+  recomputeAttendanceRecord,
+  reviewOffsetCredit,
+  reviewOffsetUsage,
+} from '../services/attendanceOffsetService'
 
 export const getAttendanceLogs = asyncHandler(async (req: Request, res: Response) => {
   const { employeeId, startDate, endDate, status } = req.query
@@ -56,9 +30,11 @@ export const getAttendanceLogs = asyncHandler(async (req: Request, res: Response
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
 
   const result = await pool.query(
-    `SELECT a.*, e.first_name, e.last_name, e.employee_number
+    `SELECT a.*, e.first_name, e.last_name, e.employee_number,
+            ws.name AS scheduled_shift_name
      FROM attendance a
      JOIN employees e ON a.employee_id = e.id
+     LEFT JOIN work_shifts ws ON ws.id = a.scheduled_shift_id
      ${where}
      ORDER BY a.date DESC, e.last_name`,
     params
@@ -76,7 +52,11 @@ export const getMyAttendance = asyncHandler(async (req: Request, res: Response) 
   if (endDate) { conditions.push(`a.date <= $${i++}`); params.push(endDate) }
 
   const result = await pool.query(
-    `SELECT * FROM attendance a WHERE ${conditions.join(' AND ')} ORDER BY a.date DESC`,
+    `SELECT a.*, ws.name AS scheduled_shift_name
+     FROM attendance a
+     LEFT JOIN work_shifts ws ON ws.id = a.scheduled_shift_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY a.date DESC`,
     params
   )
   res.json({ success: true, data: result.rows })
@@ -96,16 +76,41 @@ export const clockIn = asyncHandler(async (req: Request, res: Response) => {
     throw createError('Already clocked in today', 400)
   }
 
-  const shift = await getEmployeeShift(req.user!.employeeId!)
-  const scheduleStart = scheduledTime(now, shift.start_time)
-  const lateMins = now > scheduleStart ? Math.floor((now.getTime() - scheduleStart.getTime()) / 60000) : 0
+  const employeeId = req.user!.employeeId!
+  const shift = await getEmployeeShift(employeeId)
+  const metrics = calculateAttendanceMetrics({
+    attendanceDate: today,
+    timeIn: now,
+    shift,
+  })
 
   const result = await pool.query(
-    `INSERT INTO attendance (employee_id, date, time_in, late_minutes, status)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (employee_id, date) DO UPDATE SET time_in = $3, late_minutes = $4
+    `INSERT INTO attendance (
+       employee_id, date, time_in, late_minutes, status,
+       scheduled_shift_id, scheduled_start, scheduled_end, required_work_minutes, created_by
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (employee_id, date) DO UPDATE
+     SET time_in = $3,
+         late_minutes = $4,
+         status = $5,
+         scheduled_shift_id = $6,
+         scheduled_start = $7,
+         scheduled_end = $8,
+         required_work_minutes = $9,
+         updated_at = NOW()
      RETURNING *`,
-    [req.user!.employeeId, today, now.toISOString(), lateMins, lateMins > 0 ? 'late' : 'present']
+    [
+      employeeId,
+      today,
+      now.toISOString(),
+      metrics.lateMinutes,
+      metrics.status,
+      metrics.scheduledShiftId ?? null,
+      metrics.scheduledStart.toISOString(),
+      metrics.scheduledEnd.toISOString(),
+      metrics.requiredWorkMinutes,
+      req.user!.userId,
+    ]
   )
   res.json({ success: true, data: result.rows[0] })
 })
@@ -122,24 +127,15 @@ export const clockOut = asyncHandler(async (req: Request, res: Response) => {
   if (!existing.rows[0]) throw createError('No clock-in record found for today', 400)
   if (existing.rows[0].time_out) throw createError('Already clocked out today', 400)
 
-  const timeIn = new Date(existing.rows[0].time_in)
-  const shift = await getEmployeeShift(req.user!.employeeId!)
-  const scheduleStart = scheduledTime(now, shift.start_time)
-  const scheduleEnd = scheduledTime(now, shift.end_time)
-  if (scheduleEnd <= scheduleStart) scheduleEnd.setDate(scheduleEnd.getDate() + 1)
-
-  const elapsedMins = Math.floor((now.getTime() - timeIn.getTime()) / 60000)
-  const totalWorkedMins = Math.max(0, elapsedMins - shift.break_minutes)
-  const overtimeHours = now > scheduleEnd ? (now.getTime() - scheduleEnd.getTime()) / 3600000 : 0
-
   const result = await pool.query(
     `UPDATE attendance
-     SET time_out = $1, total_worked_minutes = $2, overtime_hours = $3
-     WHERE employee_id = $4 AND date = $5
+     SET time_out = $1, updated_at = NOW()
+     WHERE employee_id = $2 AND date = $3
      RETURNING *`,
-    [now.toISOString(), totalWorkedMins, Math.round(overtimeHours * 100) / 100, req.user!.employeeId, today]
+    [now.toISOString(), req.user!.employeeId, today]
   )
-  res.json({ success: true, data: result.rows[0] })
+  const recomputed = await recomputeAttendanceRecord(result.rows[0].id, req.user!.userId)
+  res.json({ success: true, data: recomputed })
 })
 
 export const createAttendanceRecord = asyncHandler(async (req: Request, res: Response) => {
@@ -150,11 +146,16 @@ export const createAttendanceRecord = asyncHandler(async (req: Request, res: Res
     `INSERT INTO attendance (employee_id, date, time_in, time_out, status, remarks, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (employee_id, date) DO UPDATE
-     SET time_in = $3, time_out = $4, status = $5, remarks = $6, updated_at = NOW()
+     SET time_in = $3,
+         time_out = $4,
+         status = $5,
+         remarks = $6,
+         updated_at = NOW()
      RETURNING *`,
     [employeeId, date, timeIn, timeOut, status ?? 'present', remarks, req.user!.userId]
   )
-  res.status(201).json({ success: true, data: result.rows[0] })
+  const recomputed = await recomputeAttendanceRecord(result.rows[0].id, req.user!.userId)
+  res.status(201).json({ success: true, data: recomputed })
 })
 
 export const getAttendanceSummary = asyncHandler(async (req: Request, res: Response) => {
@@ -168,7 +169,12 @@ export const getAttendanceSummary = asyncHandler(async (req: Request, res: Respo
        COUNT(*) FILTER (WHERE status = 'late') AS late_days,
        COUNT(*) FILTER (WHERE status = 'half_day') AS half_days,
        COALESCE(SUM(late_minutes), 0) AS total_late_minutes,
-       COALESCE(SUM(overtime_hours), 0) AS total_overtime_hours,
+       COALESCE(SUM(excess_minutes), 0) AS total_excess_minutes,
+       COALESCE(SUM(offset_earned_minutes), 0) AS total_offset_earned_minutes,
+       COALESCE(SUM(offset_used_minutes), 0) AS total_offset_used_minutes,
+       ROUND(COALESCE(SUM(offset_earned_minutes), 0) / 60.0, 2) AS total_offset_earned_hours,
+       ROUND(COALESCE(SUM(offset_used_minutes), 0) / 60.0, 2) AS total_offset_used_hours,
+       0 AS total_overtime_hours,
        COALESCE(SUM(total_worked_minutes), 0) AS total_worked_minutes
      FROM attendance
      WHERE employee_id = $1
@@ -242,11 +248,107 @@ export const approveAttendanceRequest = asyncHandler(async (req: Request, res: R
        SET status = EXCLUDED.status,
            time_in = COALESCE(EXCLUDED.time_in, attendance.time_in),
            time_out = COALESCE(EXCLUDED.time_out, attendance.time_out),
-           updated_at = NOW()`,
+           updated_at = NOW()
+       RETURNING id`,
       [request.requested_status, request.requested_time_in, request.requested_time_out,
        request.employee_id, request.date, req.user!.userId]
     )
+    await recomputeAttendanceForEmployeeDate(request.employee_id, request.date, req.user!.userId)
   }
 
   res.json({ success: true, data: result.rows[0] })
+})
+
+export const getOffsetBalancesReport = asyncHandler(async (req: Request, res: Response) => {
+  const employeeId = req.user!.role === 'employee'
+    ? req.user!.employeeId
+    : req.query.employeeId ? String(req.query.employeeId) : undefined
+
+  if (req.user!.role === 'employee' && !employeeId) {
+    throw createError('No employee profile is linked to this account', 403)
+  }
+
+  const data = await getOffsetBalances(employeeId)
+  res.json({ success: true, data: req.user!.role === 'employee' ? data[0] ?? null : data })
+})
+
+export const getOffsetCreditsReport = asyncHandler(async (req: Request, res: Response) => {
+  const data = await listOffsetCredits({
+    employeeId: req.query.employeeId ? String(req.query.employeeId) : undefined,
+    status: req.query.status ? String(req.query.status) : undefined,
+    startDate: req.query.startDate ? String(req.query.startDate) : undefined,
+    endDate: req.query.endDate ? String(req.query.endDate) : undefined,
+  })
+  res.json({ success: true, data })
+})
+
+export const reviewOffsetCreditRequest = asyncHandler(async (req: Request, res: Response) => {
+  const { action, remarks } = req.body
+  if (action !== 'approve' && action !== 'reject') {
+    throw createError('action must be approve or reject', 400)
+  }
+
+  const data = await reviewOffsetCredit(req.params.id, action, req.user!.userId, remarks)
+  res.json({ success: true, data })
+})
+
+export const getOffsetUsagesReport = asyncHandler(async (req: Request, res: Response) => {
+  const data = await listOffsetUsages({
+    employeeId: req.query.employeeId ? String(req.query.employeeId) : undefined,
+    status: req.query.status ? String(req.query.status) : undefined,
+    startDate: req.query.startDate ? String(req.query.startDate) : undefined,
+    endDate: req.query.endDate ? String(req.query.endDate) : undefined,
+  })
+  res.json({ success: true, data })
+})
+
+export const submitOffsetUsage = asyncHandler(async (req: Request, res: Response) => {
+  const employeeId = req.user!.role === 'employee'
+    ? req.user!.employeeId
+    : req.body.employeeId
+  const { usageDate, requestedMinutes, reason } = req.body
+
+  if (!employeeId) throw createError('employeeId is required', 400)
+  if (!usageDate || !requestedMinutes || !reason) {
+    throw createError('usageDate, requestedMinutes, and reason are required', 400)
+  }
+
+  const data = await createOffsetUsageRequest({
+    employeeId,
+    usageDate,
+    requestedMinutes: Number(requestedMinutes),
+    reason,
+    createdBy: req.user!.userId,
+  })
+  res.status(201).json({ success: true, data })
+})
+
+export const reviewOffsetUsageRequest = asyncHandler(async (req: Request, res: Response) => {
+  const { action, approvedMinutes, remarks } = req.body
+  if (action !== 'approve' && action !== 'reject') {
+    throw createError('action must be approve or reject', 400)
+  }
+
+  const data = await reviewOffsetUsage(
+    req.params.id,
+    action,
+    req.user!.userId,
+    approvedMinutes == null ? undefined : Number(approvedMinutes),
+    remarks
+  )
+  res.json({ success: true, data })
+})
+
+export const createOffsetAdjustmentRecord = asyncHandler(async (req: Request, res: Response) => {
+  const { employeeId, minutes, reason, date } = req.body
+  if (!employeeId || !minutes || !reason) throw createError('employeeId, minutes, and reason are required', 400)
+
+  const data = await createOffsetAdjustment({
+    employeeId,
+    minutes: Number(minutes),
+    reason,
+    date,
+    actorUserId: req.user!.userId,
+  })
+  res.status(201).json({ success: true, data })
 })

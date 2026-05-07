@@ -44,7 +44,8 @@ export const getEmployeeDashboard = asyncHandler(async (req: Request, res: Respo
 
   const [todayResult, monthlyResult, leaveResult, announcementsResult] = await Promise.all([
     pool.query(
-      `SELECT id, date, time_in, time_out, status, late_minutes, overtime_hours,
+      `SELECT id, date, time_in, time_out, status, late_minutes,
+              offset_earned_minutes, offset_used_minutes, excess_minutes,
               total_worked_minutes, created_at, updated_at
        FROM attendance
        WHERE employee_id = $1 AND date = $2`,
@@ -58,7 +59,9 @@ export const getEmployeeDashboard = asyncHandler(async (req: Request, res: Respo
          COUNT(*) FILTER (WHERE status = 'half_day') AS half_days,
          COUNT(*) FILTER (WHERE status = 'on_leave') AS leave_days,
          COALESCE(SUM(late_minutes), 0) AS late_minutes,
-         COALESCE(SUM(overtime_hours), 0) AS overtime_hours,
+         COALESCE(SUM(offset_earned_minutes), 0) AS offset_earned_minutes,
+         COALESCE(SUM(offset_used_minutes), 0) AS offset_used_minutes,
+         COALESCE(SUM(undertime_minutes), 0) AS undertime_minutes,
          COALESCE(SUM(total_worked_minutes), 0) AS worked_minutes
        FROM attendance
        WHERE employee_id = $1
@@ -98,6 +101,8 @@ export const getEmployeeDashboard = asyncHandler(async (req: Request, res: Respo
   const scheduledHours = Number(employee.scheduled_hours ?? 8)
   const monthly = monthlyResult.rows[0]
   const totalHours = Number(monthly.worked_minutes ?? 0) / 60
+  const offsetUsedHours = Number(monthly.offset_used_minutes ?? 0) / 60
+  const effectiveHours = totalHours + offsetUsedHours
   const expectedHours = Number(employee.scheduled_hours ?? 8) * Number(employee.work_days_per_month ?? 22)
   const leaveItems = leaveResult.rows.map((row) => ({
     id: row.id,
@@ -139,7 +144,10 @@ export const getEmployeeDashboard = asyncHandler(async (req: Request, res: Respo
         scheduledEnd: employee.shift_end,
         scheduledHours,
         lateMinutes: Number(attendance?.late_minutes ?? 0),
-        overtimeHours: Number(attendance?.overtime_hours ?? 0),
+        offsetEarnedMinutes: Number(attendance?.offset_earned_minutes ?? 0),
+        offsetUsedMinutes: Number(attendance?.offset_used_minutes ?? 0),
+        excessMinutes: Number(attendance?.excess_minutes ?? 0),
+        overtimeHours: 0,
       },
       monthlyAttendance: {
         presentDays: Number(monthly.present_days ?? 0),
@@ -149,8 +157,11 @@ export const getEmployeeDashboard = asyncHandler(async (req: Request, res: Respo
         leaveDays: Number(monthly.leave_days ?? 0),
         totalHours: round(totalHours),
         expectedHours: round(expectedHours),
-        shortageHours: round(Math.max(0, expectedHours - totalHours)),
-        overtimeHours: Number(monthly.overtime_hours ?? 0),
+        shortageHours: round(Math.max(0, expectedHours - effectiveHours)),
+        offsetEarnedHours: round(Number(monthly.offset_earned_minutes ?? 0) / 60),
+        offsetUsedHours: round(offsetUsedHours),
+        undertimeHours: round(Number(monthly.undertime_minutes ?? 0) / 60),
+        overtimeHours: 0,
         lateMinutes: Number(monthly.late_minutes ?? 0),
       },
       leaveBalance: {

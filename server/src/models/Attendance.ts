@@ -9,7 +9,16 @@ export interface AttendanceRow {
   time_in?: Date
   time_out?: Date
   status: AttendanceStatus
+  scheduled_shift_id?: string
+  scheduled_start?: Date
+  scheduled_end?: Date
+  required_work_minutes: number
+  actual_rendered_minutes: number
   late_minutes: number
+  undertime_minutes: number
+  excess_minutes: number
+  offset_earned_minutes: number
+  offset_used_minutes: number
   overtime_hours: number
   holiday_hours: number
   night_diff_hours: number

@@ -17,6 +17,10 @@ CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'late', 'half_day', 
 CREATE TYPE leave_request_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled');
 CREATE TYPE user_role AS ENUM ('admin', 'employee');
 CREATE TYPE loan_status AS ENUM ('active', 'paid', 'defaulted', 'cancelled');
+CREATE TYPE offset_credit_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled', 'expired');
+CREATE TYPE offset_credit_source AS ENUM ('excess_hours', 'attendance_correction', 'manual_adjustment');
+CREATE TYPE offset_usage_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled');
+CREATE TYPE offset_usage_source AS ENUM ('employee_request', 'admin_entry', 'manual_adjustment');
 
 -- ─── Departments ─────────────────────────────────────────────────────────────
 
@@ -168,6 +172,12 @@ CREATE TABLE payroll_records (
   allowances             NUMERIC(12,2) DEFAULT 0,
   other_earnings         NUMERIC(12,2) DEFAULT 0,
   gross_pay              NUMERIC(12,2) DEFAULT 0,
+  -- Offset visibility only; not treated as additional salary
+  excess_minutes         INT DEFAULT 0,
+  offset_earned_minutes  INT DEFAULT 0,
+  offset_used_minutes    INT DEFAULT 0,
+  undertime_minutes      INT DEFAULT 0,
+  offset_balance_minutes INT DEFAULT 0,
   -- Deductions
   absence_deduction      NUMERIC(12,2) DEFAULT 0,
   late_deduction         NUMERIC(12,2) DEFAULT 0,
@@ -199,7 +209,16 @@ CREATE TABLE attendance (
   time_in               TIMESTAMPTZ,
   time_out              TIMESTAMPTZ,
   status                attendance_status DEFAULT 'present',
+  scheduled_shift_id    UUID REFERENCES work_shifts(id),
+  scheduled_start       TIMESTAMPTZ,
+  scheduled_end         TIMESTAMPTZ,
+  required_work_minutes INT DEFAULT 480,
+  actual_rendered_minutes INT DEFAULT 0,
   late_minutes          INT DEFAULT 0,
+  undertime_minutes     INT DEFAULT 0,
+  excess_minutes        INT DEFAULT 0,
+  offset_earned_minutes INT DEFAULT 0,
+  offset_used_minutes   INT DEFAULT 0,
   overtime_hours        NUMERIC(5,2) DEFAULT 0,
   holiday_hours         NUMERIC(5,2) DEFAULT 0,
   night_diff_hours      NUMERIC(5,2) DEFAULT 0,
@@ -209,6 +228,50 @@ CREATE TABLE attendance (
   created_at            TIMESTAMPTZ DEFAULT NOW(),
   updated_at            TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (employee_id, date)
+);
+
+CREATE TABLE offset_credits (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id           UUID NOT NULL REFERENCES employees(id),
+  attendance_id         UUID REFERENCES attendance(id) ON DELETE SET NULL,
+  date_earned           DATE NOT NULL,
+  source                offset_credit_source NOT NULL DEFAULT 'excess_hours',
+  minutes_earned        INT NOT NULL CHECK (minutes_earned >= 0),
+  minutes_remaining     INT NOT NULL DEFAULT 0 CHECK (minutes_remaining >= 0),
+  status                offset_credit_status NOT NULL DEFAULT 'pending',
+  reason                TEXT,
+  review_remarks        TEXT,
+  reviewed_by           UUID REFERENCES users(id),
+  reviewed_at           TIMESTAMPTZ,
+  created_by            UUID REFERENCES users(id),
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE offset_usages (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id           UUID NOT NULL REFERENCES employees(id),
+  attendance_id         UUID REFERENCES attendance(id) ON DELETE SET NULL,
+  usage_date            DATE NOT NULL,
+  requested_minutes     INT NOT NULL CHECK (requested_minutes > 0),
+  approved_minutes      INT NOT NULL DEFAULT 0 CHECK (approved_minutes >= 0),
+  status                offset_usage_status NOT NULL DEFAULT 'pending',
+  source                offset_usage_source NOT NULL DEFAULT 'employee_request',
+  reason                TEXT NOT NULL,
+  review_remarks        TEXT,
+  reviewed_by           UUID REFERENCES users(id),
+  reviewed_at           TIMESTAMPTZ,
+  created_by            UUID REFERENCES users(id),
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE offset_usage_allocations (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  offset_usage_id       UUID NOT NULL REFERENCES offset_usages(id) ON DELETE CASCADE,
+  offset_credit_id      UUID NOT NULL REFERENCES offset_credits(id),
+  minutes_applied       INT NOT NULL CHECK (minutes_applied > 0),
+  created_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE attendance_requests (
@@ -340,12 +403,25 @@ CREATE INDEX idx_employees_status ON employees(employment_status);
 CREATE INDEX idx_users_activation_token_hash ON users(activation_token_hash) WHERE activation_token_hash IS NOT NULL;
 CREATE INDEX idx_attendance_employee_date ON attendance(employee_id, date);
 CREATE INDEX idx_attendance_date ON attendance(date);
+CREATE INDEX idx_offset_credits_employee_status ON offset_credits(employee_id, status);
+CREATE INDEX idx_offset_credits_attendance ON offset_credits(attendance_id);
+CREATE UNIQUE INDEX idx_offset_credits_attendance_source_unique
+  ON offset_credits(attendance_id)
+  WHERE attendance_id IS NOT NULL AND source IN ('excess_hours', 'attendance_correction');
+CREATE INDEX idx_offset_usages_employee_status ON offset_usages(employee_id, status);
+CREATE INDEX idx_offset_usages_attendance ON offset_usages(attendance_id);
+CREATE INDEX idx_offset_allocations_usage ON offset_usage_allocations(offset_usage_id);
+CREATE INDEX idx_offset_allocations_credit ON offset_usage_allocations(offset_credit_id);
 CREATE INDEX idx_leave_requests_employee ON leave_requests(employee_id);
 CREATE INDEX idx_leave_requests_status ON leave_requests(status);
+CREATE INDEX idx_payroll_periods_status_start ON payroll_periods(status, start_date DESC);
+CREATE INDEX idx_payroll_periods_pay_date ON payroll_periods(pay_date);
 CREATE INDEX idx_payroll_records_period ON payroll_records(payroll_period_id);
 CREATE INDEX idx_payroll_records_employee ON payroll_records(employee_id);
+CREATE INDEX idx_payroll_records_period_status ON payroll_records(payroll_period_id, status);
 CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_entity ON audit_logs(entity, entity_id);
+CREATE INDEX idx_audit_logs_payroll_period ON audit_logs(entity, entity_id, created_at DESC) WHERE entity = 'payroll_period';
 
 -- ─── Seed: Default Leave Types ───────────────────────────────────────────────
 
@@ -360,9 +436,8 @@ INSERT INTO leave_types (name, code, days_per_year, is_paid, description) VALUES
 -- ─── Seed: Default Work Shift ────────────────────────────────────────────────
 
 INSERT INTO work_shifts (name, start_time, end_time, break_minutes, work_hours) VALUES
-  ('Regular Day Shift', '08:00', '17:00', 60, 8),
-  ('Morning Shift', '06:00', '14:00', 30, 8),
-  ('Night Shift', '22:00', '06:00', 30, 8);
+  ('Regular Shift', '08:00', '17:00', 60, 8),
+  ('Mid Shift', '09:00', '18:00', 60, 8);
 
 -- ─── Seed: Default System Settings ──────────────────────────────────────────
 
@@ -371,6 +446,8 @@ INSERT INTO system_settings (key, value, description) VALUES
   ('pay_frequency', '"semi-monthly"', 'Default pay frequency'),
   ('work_days_per_month', '22', 'Standard working days per month'),
   ('work_hours_per_day', '8', 'Standard working hours per day'),
-  ('overtime_rate', '1.25', 'Overtime rate multiplier'),
+  ('offset_credit_enabled', 'true', 'Convert excess attendance minutes into offset credits'),
+  ('offset_requires_approval', 'true', 'Offset credits and usage require admin approval'),
+  ('minimum_offset_credit_minutes', '1', 'Minimum excess minutes to create pending offset credit'),
   ('holiday_rate', '2.0', 'Regular holiday rate multiplier'),
-  ('night_differential_rate', '0.10', 'Night differential rate (10%)');
+  ('night_differential_enabled', 'false', 'Night differential computation is disabled for active day shifts');

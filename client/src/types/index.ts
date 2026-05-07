@@ -144,8 +144,17 @@ export interface AttendanceRecord {
   date: string
   timeIn?: string
   timeOut?: string
+  scheduledShiftId?: string
+  scheduledShiftName?: string
+  scheduledStart?: string
+  scheduledEnd?: string
+  requiredWorkMinutes: number
+  actualRenderedMinutes: number
   hoursWorked: number
   overtimeHours: number
+  excessMinutes: number
+  offsetEarnedMinutes: number
+  offsetUsedMinutes: number
   lateMinutes: number
   undertimeMinutes: number
   status: AttendanceStatus
@@ -159,11 +168,59 @@ export interface AttendanceRequest {
   employeeId: string
   employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'employeeNumber'>
   date: string
-  type: 'correction' | 'overtime' | 'undertime_excuse'
+  type: 'correction' | 'offset_usage' | 'undertime_excuse'
   requestedTimeIn?: string
   requestedTimeOut?: string
   reason: string
   status: 'pending' | 'approved' | 'rejected'
+  reviewedBy?: string
+  reviewedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type OffsetCreditStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired'
+export type OffsetUsageStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface OffsetBalance {
+  employeeId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'employeeNumber'>
+  pendingMinutes: number
+  availableMinutes: number
+  usedMinutes: number
+  pendingUsageMinutes: number
+}
+
+export interface OffsetCredit {
+  id: string
+  employeeId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'employeeNumber'>
+  attendanceId?: string
+  dateEarned: string
+  source: 'excess_hours' | 'attendance_correction' | 'manual_adjustment'
+  minutesEarned: number
+  minutesRemaining: number
+  status: OffsetCreditStatus
+  reason?: string
+  reviewRemarks?: string
+  reviewedBy?: string
+  reviewedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OffsetUsage {
+  id: string
+  employeeId: string
+  employee?: Pick<Employee, 'id' | 'firstName' | 'lastName' | 'employeeNumber'>
+  attendanceId?: string
+  usageDate: string
+  requestedMinutes: number
+  approvedMinutes: number
+  status: OffsetUsageStatus
+  source: 'employee_request' | 'admin_entry' | 'manual_adjustment'
+  reason: string
+  reviewRemarks?: string
   reviewedBy?: string
   reviewedAt?: string
   createdAt: string
@@ -267,6 +324,24 @@ export interface Holiday {
 export type PayFrequency = 'weekly' | 'semi-monthly' | 'monthly'
 export type PayrollStatus = 'draft' | 'processing' | 'approved' | 'released' | 'cancelled'
 
+export interface PayrollWarning {
+  code: string
+  severity: 'info' | 'warning' | 'danger'
+  message: string
+  count?: number
+}
+
+export interface PayrollAuditEntry {
+  id: string
+  action: string
+  entity: string
+  entityId: string
+  actorEmail?: string
+  oldValues?: unknown
+  newValues?: unknown
+  createdAt: string
+}
+
 export interface PayrollPeriod {
   id: string
   name: string
@@ -277,6 +352,22 @@ export interface PayrollPeriod {
   status: PayrollStatus
   createdAt: string
   updatedAt: string
+  approvedBy?: string
+  approvedAt?: string
+  activeEmployeeCount?: number
+  recordCount?: number
+  processingRecordCount?: number
+  approvedRecordCount?: number
+  releasedRecordCount?: number
+  totalGrossPay?: number
+  totalDeductions?: number
+  totalNetPay?: number
+  negativeNetCount?: number
+  pendingAttendanceRequestCount?: number
+  pendingLeaveRequestCount?: number
+  warningCount?: number
+  warnings?: PayrollWarning[]
+  auditHistory?: PayrollAuditEntry[]
 }
 
 export interface GovernmentContributions {
@@ -312,6 +403,11 @@ export interface PayrollRecord {
   allowances: number
   otherEarnings: number
   grossPay: number
+  excessMinutes: number
+  offsetEarnedMinutes: number
+  offsetUsedMinutes: number
+  undertimeMinutes: number
+  offsetBalanceMinutes: number
 
   // Deductions
   contributions: GovernmentContributions
@@ -423,10 +519,9 @@ export interface PayrollSettings {
   semiMonthlyPayDay2: number
   workingHoursPerDay: number
   workingDaysPerWeek: number
-  overtimeRate: number
-  nightDifferentialStartTime: string
-  nightDifferentialEndTime: string
-  nightDifferentialRate: number
+  offsetCreditEnabled: boolean
+  offsetRequiresApproval: boolean
+  nightDifferentialEnabled: boolean
   regularHolidayRate: number
   specialHolidayRate: number
   thirteenthMonthEnabled: boolean
@@ -456,6 +551,94 @@ export interface DashboardStats {
   currentPeriod?: PayrollPeriod
 }
 
+export interface AdminDashboardData {
+  today: string
+  generatedAt: string
+  workforce: {
+    totalEmployees: number
+    activeEmployees: number
+    inactiveEmployees: number
+  }
+  attendanceToday: {
+    date: string
+    activeEmployees: number
+    recordedEmployees: number
+    presentToday: number
+    lateToday: number
+    absentToday: number
+    onLeaveToday: number
+    missingAttendance: number
+    incompletePunches: number
+    completionRate: number
+  }
+  attendanceReadiness: {
+    periodStart: string
+    periodEnd: string
+    evaluatedThrough: string
+    expectedEmployeeDays: number
+    completedEmployeeDays: number
+    missingEmployeeDays: number
+    completionRate: number
+    isPayrollReady: boolean
+  }
+  approvals: {
+    pendingLeaveRequests: number
+    pendingAttendanceRequests: number
+    payrollPeriodsForApproval: number
+    totalPending: number
+  }
+  payroll: {
+    currentPeriod: (PayrollPeriod & {
+      recordCount: number
+      processedRecordCount: number
+      totalGrossPay: number
+      totalNetPay: number
+    }) | null
+    nextPayDate: string | null
+    nextPayDatePeriodId: string | null
+    nextPayDatePeriodName: string | null
+    daysUntilPayDate: number | null
+  }
+  attentionItems: Array<{
+    id: string
+    title: string
+    description: string
+    count: number
+    severity: 'info' | 'warning' | 'danger'
+    actionLabel: string
+    actionPath: string
+  }>
+  employeesNeedingAttention: Array<{
+    id: string
+    employeeNumber: string
+    name: string
+    department?: string
+    position?: string
+    type: 'missing_time_in' | 'incomplete_punch' | 'absent' | 'late' | 'attention'
+    severity: 'info' | 'warning' | 'danger'
+    description: string
+  }>
+  approvalQueue: Array<{
+    id: string
+    type: 'leave' | 'attendance' | 'payroll'
+    title: string
+    employeeName: string | null
+    employeeNumber: string | null
+    detail: string
+    requestedAt: string
+    actionPath: string
+  }>
+  announcements: Array<{
+    id: string
+    title: string
+    message: string
+    startDate: string | null
+    endDate: string | null
+    isPinned: boolean
+    createdAt: string
+  }>
+}
+
 export interface EmployeeDashboardData {
   employee: {
     id: string
@@ -479,6 +662,9 @@ export interface EmployeeDashboardData {
     scheduledEnd: string
     scheduledHours: number
     lateMinutes: number
+    offsetEarnedMinutes: number
+    offsetUsedMinutes: number
+    excessMinutes: number
     overtimeHours: number
   }
   monthlyAttendance: {
@@ -490,6 +676,9 @@ export interface EmployeeDashboardData {
     totalHours: number
     expectedHours: number
     shortageHours: number
+    offsetEarnedHours: number
+    offsetUsedHours: number
+    undertimeHours: number
     overtimeHours: number
     lateMinutes: number
   }

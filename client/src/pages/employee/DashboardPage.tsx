@@ -106,7 +106,7 @@ export default function EmployeeDashboardPage() {
   const isTimeOutDisabled = !canTimeOut || Boolean(punchAction)
   const workedPercent = monthly && monthly.expectedHours > 0 ? (monthly.totalHours / monthly.expectedHours) * 100 : 0
   const shortagePercent = monthly && monthly.expectedHours > 0 ? (monthly.shortageHours / monthly.expectedHours) * 100 : 0
-  const overtimePercent = monthly && monthly.expectedHours > 0 ? (monthly.overtimeHours / monthly.expectedHours) * 100 : 0
+  const offsetPercent = monthly && monthly.expectedHours > 0 ? (monthly.offsetEarnedHours / monthly.expectedHours) * 100 : 0
 
   const leaveStats = useMemo(() => {
     if (!leave) return []
@@ -243,7 +243,8 @@ export default function EmployeeDashboardPage() {
                   { label: 'Expected time', value: hours(monthly?.expectedHours ?? 0), percent: 100 },
                   { label: 'Worked time', value: hours(monthly?.totalHours ?? 0), percent: workedPercent },
                   { label: 'Shortage time', value: hours(monthly?.shortageHours ?? 0), percent: shortagePercent },
-                  { label: 'Overtime', value: hours(monthly?.overtimeHours ?? 0), percent: overtimePercent },
+                  { label: 'Offset earned', value: hours(monthly?.offsetEarnedHours ?? 0), percent: offsetPercent },
+                  { label: 'Offset used', value: hours(monthly?.offsetUsedHours ?? 0), percent: monthly && monthly.expectedHours > 0 ? (monthly.offsetUsedHours / monthly.expectedHours) * 100 : 0 },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-2">
                     <div className="flex items-center justify-between text-xs font-medium">

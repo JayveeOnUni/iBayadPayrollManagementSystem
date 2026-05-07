@@ -8,6 +8,7 @@ import {
   getPayrollPeriodById,
   createPayrollPeriod,
   getPayrollRecords,
+  getPayrollRecordById,
   getMyPayrollRecords,
   processPayroll,
   approvePayroll,
@@ -32,6 +33,7 @@ router.get('/periods/:id', requireRole('admin'), getPayrollPeriodById)
 router.get('/periods/:periodId/leave-impacts', requireRole('admin'), getPayrollPeriodLeaveImpacts)
 router.post('/periods/:periodId/apply-leave-adjustments', requireRole('admin'), applyPayrollPeriodLeaveAdjustments)
 router.get('/records', requireRole('admin'), getPayrollRecords)
+router.get('/records/:id', requireRole('admin'), getPayrollRecordById)
 router.get('/records/:id/payslip', downloadPayslip)
 router.post('/process', requireRole('admin'), processPayroll)
 router.post('/periods/:id/approve', requireRole('admin'), approvePayroll)
